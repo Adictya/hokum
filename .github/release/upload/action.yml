@@ -29,3 +29,5 @@ runs:
         path: ${{ inputs.path }}
         retention-days: ${{ inputs.retention-days }}
         if-no-files-found: error
+        # The AUR package's .SRCINFO is listed in SHA256SUMS like every file.
+        include-hidden-files: true
