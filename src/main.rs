@@ -7,6 +7,7 @@
 //! hokum --version
 //! hokum --snap /tmp/settings.png --scene hokum            # headless settings, no D-Bus
 //! hokum service --snap /tmp/cards.png --scene demo        # headless cards, no D-Bus
+//! hokum service --snap /tmp/welcome.png --scene welcome  # the first run's card
 //! ```
 //!
 //! One process, like Hex: the service owns `org.freedesktop.Notifications`, draws the cards on
@@ -25,6 +26,7 @@ mod style;
 mod template;
 mod theme;
 mod watch;
+mod welcome;
 
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
@@ -92,9 +94,11 @@ fn launch() {
 }
 
 /// The service: the overlay, the settings window (hidden until asked for, unless `open`) and
-/// the bus.
+/// the bus. The first run starts with a welcome card, queued before the bus so a notification
+/// that started Hokum lands above it.
 fn run(open: bool, replace: bool) {
     rune::set_app_id("hokum");
+    let welcome = welcome::due();
     let config = watch::load();
     let (out_tx, out_rx) = mpsc::channel();
     let (timer_tx, timer_rx) = mpsc::channel();
@@ -107,8 +111,15 @@ fn run(open: bool, replace: bool) {
     cards::timers(timer_rx, overlay.clone());
     watch::spawn(overlay.clone(), window.clone());
     {
-        let own = overlay.clone();
-        overlay.update(move |c, _| c.handle = Some(own));
+        let (own, window) = (overlay.clone(), window.clone());
+        overlay.update(move |c, _| {
+            c.handle = Some(own);
+            c.window = Some(window);
+        });
+    }
+    if welcome {
+        let n = welcome::note();
+        overlay.update(move |c, _| c.upsert(n));
     }
     let (bus, daemon) = match bus::serve(overlay.clone(), window.clone(), out_rx, replace) {
         Ok(served) => served,
@@ -122,6 +133,9 @@ fn run(open: bool, replace: bool) {
     {
         eprintln!("hokum: {owner} owns org.freedesktop.Notifications; pass --replace to take it");
         std::process::exit(1);
+    }
+    if welcome {
+        welcome::done();
     }
     app.init(move || {
         let mut ui = settings::init();

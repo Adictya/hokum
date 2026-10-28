@@ -41,6 +41,9 @@ instead, and stop another daemon (mako, dunst, swaync) holding the name:
 systemctl --user enable --now hokum.service
 ```
 
+The first time it runs, Hokum shows one welcome card of its own with a button into Settings. It
+remembers that in `~/.local/state/hokum/welcomed`.
+
 ## Use
 
 ```sh

@@ -7,13 +7,7 @@ use std::sync::{Mutex, OnceLock};
 const KEEP: usize = 40;
 
 fn path() -> PathBuf {
-    std::env::var_os("XDG_STATE_HOME")
-        .map(PathBuf::from)
-        .filter(|p| p.is_absolute())
-        .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".local/state")))
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join("hokum")
-        .join("apps")
+    crate::style::state_dir().join("apps")
 }
 
 fn list() -> &'static Mutex<Vec<String>> {

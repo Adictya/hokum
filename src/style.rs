@@ -191,6 +191,16 @@ pub fn dir() -> PathBuf {
         .join("hokum")
 }
 
+/// `$XDG_STATE_HOME/hokum/`, for what Hokum remembers on its own.
+pub fn state_dir() -> PathBuf {
+    std::env::var_os("XDG_STATE_HOME")
+        .map(PathBuf::from)
+        .filter(|p| p.is_absolute())
+        .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".local/state")))
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join("hokum")
+}
+
 /// A file in Hokum's folder (`themes/` and `script.rhai` sit beside the config).
 pub fn path() -> PathBuf {
     dir().join("config.kdl")

@@ -5,7 +5,7 @@
 use std::sync::mpsc::{Receiver, RecvTimeoutError, Sender};
 use std::time::{Duration, Instant};
 
-use rune::{Align, AppSpec, Cursor, Cx, El, OverlayHandle, OverlayInput, OverlayOptions, OverlayPlacement, OverlaySpec, ScreenEdge, Transition, Tx, col, el, row, text};
+use rune::{Align, AppHandle, AppSpec, Cursor, Cx, El, OverlayHandle, OverlayInput, OverlayOptions, OverlayPlacement, OverlaySpec, ScreenEdge, Transition, Tx, col, el, row, text};
 use rune_kit::Kit;
 
 use crate::card::{Cards, Note, Timeout, card, samples};
@@ -51,6 +51,8 @@ pub struct Ui {
     timer: Sender<Option<Instant>>,
     /// Its own overlay, to show and hide; None when headless.
     pub handle: Option<OverlayHandle<Ui>>,
+    /// The settings window, which Hokum's own cards open; None when headless.
+    pub window: Option<AppHandle<crate::settings::Ui>>,
     shown: bool,
     hide_at: Option<Instant>,
 }
@@ -68,6 +70,7 @@ impl Ui {
             out,
             timer,
             handle: None,
+            window: None,
             shown: false,
             hide_at: None,
         };
@@ -130,7 +133,9 @@ impl Ui {
                 Err(e) => eprintln!("hokum: script.rhai: {e}"),
             }
         }
-        crate::apps::record(&n.app);
+        if n.id != crate::welcome::ID {
+            crate::apps::record(&n.app);
+        }
         let routing = self.theme.routing(&n);
         if routing.hide {
             let _ = self.out.send(Out::Closed(n.id, Reason::Expired));
@@ -230,6 +235,15 @@ impl Cards for Ui {
         let note = self.notes.iter().find(|n| n.id == id);
         let resident = note.is_some_and(|n| n.resident);
         let token = rune::press_activation_token(note.and_then(|n| n.desktop.as_deref()));
+        if id == crate::welcome::ID {
+            match (&self.window, token) {
+                (Some(w), Some(t)) => w.activate(t),
+                (Some(w), None) => w.open(),
+                (None, _) => {}
+            }
+            self.dismiss(id);
+            return;
+        }
         let _ = self.out.send(Out::Action(id, key.to_owned(), token));
         if !resident {
             self.dismiss(id);
@@ -364,16 +378,24 @@ pub fn timers(rx: Receiver<Option<Instant>>, handle: OverlayHandle<Ui>) {
     });
 }
 
-fn demo(s: &mut Ui) {
-    for mut n in samples().into_iter().rev() {
-        // Headless runs have no event loop to finish decodes, so decode and wait here.
-        let cache = rune::ImageCache::new(std::sync::Arc::new(|| {}));
-        n.decode(&cache);
-        for img in n.icon.iter().chain(&n.image) {
-            let _ = img.wait();
-        }
-        s.upsert(n);
+/// Headless runs have no event loop to finish decodes, so decode and wait here.
+fn decoded(mut n: Note) -> Note {
+    let cache = rune::ImageCache::new(std::sync::Arc::new(|| {}));
+    n.decode(&cache);
+    for img in n.icon.iter().chain(&n.image) {
+        let _ = img.wait();
     }
+    n
+}
+
+fn demo(s: &mut Ui) {
+    for n in samples().into_iter().rev() {
+        s.upsert(decoded(n));
+    }
+}
+
+fn welcome(s: &mut Ui) {
+    s.upsert(decoded(crate::welcome::note()));
 }
 
 /// Scenes for the bundled themes.
@@ -416,6 +438,7 @@ pub fn headless() {
         scenes: &[
             ("demo", demo),
             ("overflow", overflow),
+            ("welcome", welcome),
             ("soft", |s| bundled(s, "soft")),
             ("crisp", |s| bundled(s, "crisp")),
             ("capsule", |s| bundled(s, "capsule")),
@@ -482,6 +505,15 @@ mod tests {
         ui.activate(7);
         let out: Vec<Out> = rx.try_iter().collect();
         assert_eq!(out, vec![Out::Action(7, "default".into(), None)]);
+    }
+
+    #[test]
+    fn the_welcome_opens_settings_instead_of_signalling() {
+        let (mut ui, rx) = ui();
+        ui.notes.push(crate::welcome::note());
+        ui.invoke(crate::welcome::ID, "open-settings");
+        let out: Vec<Out> = rx.try_iter().collect();
+        assert_eq!(out, vec![Out::Closed(crate::welcome::ID, Reason::Dismissed)]);
     }
 
     #[test]
