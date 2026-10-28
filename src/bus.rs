@@ -15,6 +15,7 @@ use zbus::fdo::{RequestNameFlags, RequestNameReply};
 use zbus::zvariant::OwnedValue;
 
 use crate::card::{Note, Timeout};
+use crate::icons::Source;
 use crate::cards::{Out, Reason, Ui};
 use crate::settings::Daemon;
 use crate::style::Settings;
@@ -31,6 +32,16 @@ struct Server {
 
 fn hint<T: TryFrom<OwnedValue>>(hints: &HashMap<String, OwnedValue>, key: &str) -> Option<T> {
     hints.get(key).and_then(|v| v.try_clone().ok()).and_then(|v| T::try_from(v).ok())
+}
+
+/// The spec's `image-data` hint, `(iiibiiay)`.
+fn image_data(v: &OwnedValue) -> Option<Source> {
+    let s = zbus::zvariant::Structure::try_from(v.try_clone().ok()?).ok()?;
+    let f = s.fields();
+    let int = |i: usize| -> Option<i32> { i32::try_from(f.get(i)?).ok() };
+    let alpha = bool::try_from(f.get(3)?).ok()?;
+    let data = <Vec<u8>>::try_from(f.get(6)?.try_clone().ok()?).ok()?;
+    crate::icons::image_data(int(0)?, int(1)?, int(2)?, alpha, int(4)?, int(5)?, &data)
 }
 
 /// Bodies may carry the spec's small markup subset; cards show plain text.
@@ -84,7 +95,7 @@ impl Server {
         &self,
         app_name: String,
         replaces_id: u32,
-        _app_icon: String,
+        app_icon: String,
         summary: String,
         body: String,
         actions: Vec<String>,
@@ -112,6 +123,17 @@ impl Server {
             .or_else(|| hint::<String>(&hints, "x-canonical-private-synchronous"))
             .filter(|t| !t.is_empty());
         n.resident = hint::<bool>(&hints, "resident").unwrap_or(false);
+        let desktop = hint::<String>(&hints, "desktop-entry");
+        n.icon_src = crate::icons::for_app(&app_icon, desktop.as_deref(), &n.app).map(Source::File);
+        n.image_src = ["image-data", "image_data", "icon_data"]
+            .iter()
+            .find_map(|k| hints.get(*k).and_then(image_data))
+            .or_else(|| {
+                let path = hint::<String>(&hints, "image-path").or_else(|| hint::<String>(&hints, "image_path"))?;
+                crate::icons::icon(&path).map(Source::File)
+            })
+            // The app's own icon isn't a picture of the notification.
+            .filter(|img| Some(img) != n.icon_src.as_ref());
         for pair in actions.chunks(2) {
             let (key, label) = (pair[0].clone(), pair.get(1).cloned().unwrap_or_default());
             if key == "default" {

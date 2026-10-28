@@ -9,7 +9,10 @@ use rune::{Align, AppSpec, Cursor, Cx, El, OverlayHandle, OverlayInput, OverlayO
 use rune_kit::Kit;
 
 use crate::card::{Cards, Note, Timeout, card, samples};
+use crate::script::Script;
 use crate::style::{Appearance, PRESETS, Settings};
+use crate::theme::Theme;
+use crate::watch::Config;
 
 /// The gap around the stack, which leaves room for shadows.
 pub const GUTTER: f32 = 18.0;
@@ -36,6 +39,10 @@ pub struct Ui {
     notes: Vec<Note>,
     paused: bool,
     pub settings: Settings,
+    pub theme: Theme,
+    script: Option<Script>,
+    /// Decodes icons and pictures; made with the overlay's waker at startup.
+    cache: Option<rune::ImageCache>,
     /// The desktop's colour scheme (`Appearance::System`).
     pub system_dark: bool,
     out: Sender<Out>,
@@ -47,9 +54,40 @@ pub struct Ui {
 }
 
 impl Ui {
-    pub fn new(settings: Settings, out: Sender<Out>, timer: Sender<Option<Instant>>) -> Ui {
-        Ui { notes: Vec::new(), paused: false, settings, system_dark: true, out, timer, handle: None, shown: false, hide_at: None }
+    pub fn new(config: Config, out: Sender<Out>, timer: Sender<Option<Instant>>) -> Ui {
+        let mut ui = Ui {
+            notes: Vec::new(),
+            paused: false,
+            settings: config.settings.clone(),
+            theme: Theme::builtin(),
+            script: None,
+            cache: None,
+            system_dark: true,
+            out,
+            timer,
+            handle: None,
+            shown: false,
+            hide_at: None,
+        };
+        ui.configure(config);
+        ui
     }
+
+    /// Settings, theme and script from files (at startup, and whenever they change).
+    pub fn configure(&mut self, config: Config) {
+        if let Ok(theme) = config.theme {
+            self.theme = theme;
+        }
+        self.script = config.script.as_deref().and_then(|src| match Script::compile(src) {
+            Ok(s) => Some(s),
+            Err(e) => {
+                eprintln!("hokum: script.rhai: {e}");
+                None
+            }
+        });
+        self.apply(config.settings);
+    }
+
 
     pub fn dark(&self) -> bool {
         match self.settings.appearance {
@@ -63,7 +101,7 @@ impl Ui {
     pub fn apply(&mut self, settings: Settings) {
         if let Some(h) = &self.handle {
             h.set_placement(Some(placement(&settings)));
-            h.resize(size(&settings));
+            h.resize(size(&settings, &self.theme, self.dark()));
         }
         if !settings.pause_on_hover {
             self.hover(false);
@@ -73,6 +111,27 @@ impl Ui {
 
     /// Shows `n`, replacing the card with the same id or stack tag in place.
     pub fn upsert(&mut self, mut n: Note) {
+        if let Some(script) = &self.script {
+            match script.apply(&mut n) {
+                Ok(true) => {}
+                Ok(false) => {
+                    let _ = self.out.send(Out::Closed(n.id, Reason::Expired));
+                    return;
+                }
+                Err(e) => eprintln!("hokum: script.rhai: {e}"),
+            }
+        }
+        let (hide, timeout) = self.theme.behaviour(&n);
+        if hide {
+            let _ = self.out.send(Out::Closed(n.id, Reason::Expired));
+            return;
+        }
+        if let Some(t) = timeout {
+            n.timeout = t;
+        }
+        if let Some(cache) = &self.cache {
+            n.decode(cache);
+        }
         if self.settings.do_not_disturb && n.urgency < 2 {
             let _ = self.out.send(Out::Closed(n.id, Reason::Expired));
             return;
@@ -189,8 +248,8 @@ impl Cards for Ui {
     }
 }
 
-fn size(s: &Settings) -> (f32, f32) {
-    (s.style.card_width() + GUTTER * 2.0, HEIGHT)
+fn size(s: &Settings, theme: &Theme, dark: bool) -> (f32, f32) {
+    (theme.base(&s.style, dark).width + GUTTER * 2.0, HEIGHT)
 }
 
 /// The corner of the screen for `s`.
@@ -205,18 +264,19 @@ fn placement(s: &Settings) -> OverlayPlacement {
 
 /// The stack of cards for `notes` in a corner of its parent, as the overlay and the settings
 /// preview both draw it.
-pub fn stack<S: Cards>(notes: &[Note], s: &Settings, k: &Kit, more: Option<El>) -> El {
-    let (_, _, between) = s.style.spacing();
+pub fn stack<S: Cards>(notes: &[Note], s: &Settings, theme: &Theme, k: &Kit, more: Option<El>) -> El {
+    let base = theme.base(&s.style, k.dark);
+    let between = base.spacing;
     let right = s.position.right();
     let bottom = s.position.bottom();
-    let shown = notes.iter().take(s.max_shown.max(1)).map(|n| card::<S>(n, &s.style, k, right));
+    let shown = notes.iter().take(s.max_shown.max(1)).map(|n| card::<S>(n, theme, &s.style, k, right));
     let cards: Vec<El> = if bottom { shown.rev().collect() } else { shown.collect() };
     let (l, r) = if right { (None, Some(GUTTER)) } else { (Some(GUTTER), None) };
     let (t, b) = if bottom { (None, Some(GUTTER)) } else { (Some(GUTTER), None) };
     let mut col = col()
         .key("stack")
         .pin(l, t, r, b)
-        .w(s.style.card_width())
+        .w(base.width)
         .gap(between)
         .on_hover_change(|s: &mut S, inside, _: &mut Tx| s.hover(inside));
     let more = more.map(|m| {
@@ -258,15 +318,18 @@ pub fn view(s: &Ui, _: &mut Cx<Ui>) -> El {
     let k = rune_theme_opencode::kit(s.dark());
     let hidden = s.notes.len().saturating_sub(s.settings.max_shown.max(1));
     let pill = (hidden > 0).then(|| more(hidden, k));
-    el().key("root").w_full().h_full().child(stack::<Ui>(&s.notes, &s.settings, k, pill))
+    el().key("root").w_full().h_full().child(stack::<Ui>(&s.notes, &s.settings, &s.theme, k, pill))
 }
 
-pub fn overlay(settings: &Settings) -> rune::ConfiguredOverlay<Ui> {
-    OverlaySpec::new("hokum", size(settings), view).options(OverlayOptions {
-        placement: Some(placement(settings)),
-        input: OverlayInput::Regions,
-        ..OverlayOptions::default()
-    })
+pub fn overlay(config: &Config) -> rune::ConfiguredOverlay<Ui> {
+    let theme = config.theme.clone().unwrap_or_else(|_| Theme::builtin());
+    OverlaySpec::new("hokum", size(&config.settings, &theme, true), view)
+        .options(OverlayOptions {
+            placement: Some(placement(&config.settings)),
+            input: OverlayInput::Regions,
+            ..OverlayOptions::default()
+        })
+        .setup(|ui, waker| ui.cache = Some(rune::ImageCache::new(waker)))
 }
 
 /// Sleeps until the earliest deadline, then expires what's due; each reschedule replaces it.
@@ -291,9 +354,23 @@ pub fn timers(rx: Receiver<Option<Instant>>, handle: OverlayHandle<Ui>) {
 }
 
 fn demo(s: &mut Ui) {
-    for n in samples().into_iter().rev() {
+    for mut n in samples().into_iter().rev() {
+        // Headless runs have no event loop to finish decodes, so decode and wait here.
+        let cache = rune::ImageCache::new(std::sync::Arc::new(|| {}));
+        n.decode(&cache);
+        for img in n.icon.iter().chain(&n.image) {
+            let _ = img.wait();
+        }
         s.upsert(n);
     }
+}
+
+/// `--scene theme:<id>`-style scenes for the bundled themes.
+fn bundled(s: &mut Ui, id: &str) {
+    if let Ok(t) = crate::theme::load(id) {
+        s.theme = t;
+    }
+    demo(s);
 }
 
 fn preset(s: &mut Ui, i: usize) {
@@ -309,7 +386,7 @@ fn overflow(s: &mut Ui) {
 }
 
 fn headless_state() -> Ui {
-    let mut ui = Ui::new(Settings::load(), std::sync::mpsc::channel().0, std::sync::mpsc::channel().0);
+    let mut ui = Ui::new(crate::watch::load(), std::sync::mpsc::channel().0, std::sync::mpsc::channel().0);
     // `--theme light|dark` picks the appearance, as the desktop would.
     ui.system_dark = !std::env::args().any(|a| a == "light");
     ui
@@ -337,10 +414,14 @@ pub fn headless() {
             ("crisp", |s| preset(s, 1)),
             ("capsule", |s| preset(s, 2)),
             ("ribbon", |s| preset(s, 3)),
+            ("terminal", |s| bundled(s, "terminal")),
+            ("bubble", |s| bundled(s, "bubble")),
+            ("neon", |s| bundled(s, "neon")),
+            ("pill", |s| bundled(s, "pill")),
         ],
         fonts: rune_theme_opencode::FONTS,
         families: rune_theme_opencode::FAMILIES,
-        ..AppSpec::new("Hokum", size(&settings), headless_state, headless_view)
+        ..AppSpec::new("Hokum", size(&settings, &Theme::builtin(), true), headless_state, headless_view)
     };
     rune::App::new(spec).run();
 }

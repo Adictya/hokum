@@ -38,7 +38,13 @@ Like Hex, Hokum is one process: the service owns the bus name, draws the cards o
 click-through overlay and hosts the settings window. Launching `hokum` again shows that window.
 
 - **Styles:** four presets (Soft, Crisp, Capsule and Ribbon), or set corners, density, app
-  mark (letter, dot, stripe or none), shadow, width, border and appearance yourself.
+  mark (icon, letter, dot, stripe or none), shadow, width, border and appearance yourself.
+- **Themes:** KDL files that change any token, lay cards out with templates, and route
+  notifications with rules; plus a Rhai script that can rewrite or drop notifications. Four
+  ship with Hokum (Terminal, Bubble, Neon, Pill), and edits apply as you save. See
+  [docs/theming.md](docs/theming.md).
+- **Icons and pictures:** app icons from your icon theme, and the pictures notifications carry
+  (avatars, album art). Emoji draw in colour.
 - **Behaviour:** screen corner, how long cards stay, how many show, pause while hovered, and
   Do not disturb (only critical notifications show).
 - **Cards:** action buttons, a click for the default action, progress bars (`value`), and
@@ -46,9 +52,8 @@ click-through overlay and hosts the settings window. Launching `hokum` again sho
   brightness). Critical notifications stay until dismissed. Slack's `[workspace] in #channel`
   titles become the sender, the message, and the channel beside the app's name.
 
-Settings live in `$XDG_CONFIG_HOME/hokum/settings.json`. After editing the file by hand, run
-`gdbus call --session --dest org.freedesktop.Notifications --object-path /app/hokum/Daemon
---method app.hokum.Daemon.Reload` to apply it.
+Settings live in `$XDG_CONFIG_HOME/hokum/settings.json`, themes in `themes/` and the script in
+`script.rhai` beside it. Hokum notices when any of them change and applies them.
 
 ## Build
 

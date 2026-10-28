@@ -15,8 +15,13 @@
 mod bus;
 mod card;
 mod cards;
+mod icons;
+mod script;
 mod settings;
 mod style;
+mod template;
+mod theme;
+mod watch;
 
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
@@ -82,16 +87,17 @@ fn launch() {
 /// the bus.
 fn run(open: bool, replace: bool) {
     rune::set_app_id("hokum");
-    let settings = style::Settings::load();
+    let config = watch::load();
     let (out_tx, out_rx) = mpsc::channel();
     let (timer_tx, timer_rx) = mpsc::channel();
     let mut app = rune::App::new(settings::spec()).window_options(settings::window()).keep_running().args(Vec::new());
     if !open {
         app = app.windowless();
     }
-    let overlay = app.overlay(cards::overlay(&settings), cards::Ui::new(settings, out_tx, timer_tx));
+    let overlay = app.overlay(cards::overlay(&config), cards::Ui::new(config.clone(), out_tx, timer_tx));
     let window = app.handle();
     cards::timers(timer_rx, overlay.clone());
+    watch::spawn(overlay.clone(), window.clone());
     {
         let own = overlay.clone();
         overlay.update(move |c, _| c.handle = Some(own));
@@ -111,6 +117,7 @@ fn run(open: bool, replace: bool) {
     }
     app.init(move || {
         let mut ui = settings::init();
+        ui.configure(config);
         ui.daemon = daemon;
         ui.overlay = Some(overlay);
         ui.bus = Some(bus);

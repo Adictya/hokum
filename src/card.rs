@@ -1,12 +1,16 @@
 //! One notification and the card that draws it, shared by the overlay and the settings preview.
+//! A card is its theme's template over its tokens (`theme.rs`, `template.rs`); this file adds
+//! the parts every card has: the surface, the press, the entrance and the exit.
 
 use std::time::{Duration, Instant};
 
-use rune::{Color, Cursor, Edge, El, Shadow, Spring, TextStyle, Transition, col, el, icon, oklch, row, text};
-use rune_kit::{Button, ButtonVariant, ControlSize, Kit, Progress};
-use rune_theme_opencode::icons;
+use rune::{Color, Cursor, Edge, El, Image, Shadow, Spring, Transition, col, el, oklch, row};
+use rune_kit::Kit;
 
-use crate::style::{Depth, Mark, Style};
+use crate::icons::Source;
+use crate::style::{Mark, Style};
+use crate::template::{Ctx, render};
+use crate::theme::{Enter, Fill, Lift, Theme};
 
 /// How long a notification stays when the app leaves it to the daemon.
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -33,6 +37,14 @@ pub struct Note {
     pub resident: bool,
     pub timeout: Timeout,
     pub time: String,
+    /// A template a script picked, by name.
+    pub template: Option<String>,
+    /// Where the app's icon and the notification's picture come from; decoded on the UI
+    /// thread into `icon` and `image`.
+    pub icon_src: Option<Source>,
+    pub image_src: Option<Source>,
+    pub icon: Option<Image>,
+    pub image: Option<Image>,
     pub deadline: Option<Instant>,
     /// Time left while timers are paused.
     pub left: Option<Duration>,
@@ -54,9 +66,26 @@ impl Note {
             resident: false,
             timeout: Timeout::Default,
             time: clock(),
+            template: None,
+            icon_src: None,
+            image_src: None,
+            icon: None,
+            image: None,
             deadline: None,
             left: None,
         }
+    }
+
+    /// Decodes the icon and picture with `cache` (the decode itself runs on the cache's worker).
+    pub fn decode(&mut self, cache: &rune::ImageCache) {
+        let load = |src: &Option<Source>| -> Option<Image> {
+            Some(match src.as_ref()? {
+                Source::File(path) => cache.file(path, 64.0, 2.0),
+                Source::Rgba { width, height, bytes } => cache.rgba(*width, *height, bytes.clone()),
+            })
+        };
+        self.icon = load(&self.icon_src);
+        self.image = load(&self.image_src);
     }
 }
 
@@ -86,140 +115,96 @@ pub fn tint(app: &str) -> Color {
     oklch(0.64, 0.13, (h % 360) as f32)
 }
 
-/// The card for `n` in `style`. `from_right` picks the edge it slides in from and leaves by.
-pub fn card<S: Cards>(n: &Note, style: &Style, k: &Kit, from_right: bool) -> El {
-    let c = &k.c;
+/// The card for `n`: `theme` over `style`. `from_right` picks the edge it slides in from.
+pub fn card<S: Cards>(n: &Note, theme: &Theme, style: &Style, k: &Kit, from_right: bool) -> El {
+    let look = theme.look(n, style, k.dark);
+    let t = &look.tokens;
+    let tint = tint(&n.app);
+    let accent = t.accent.resolve(k, tint);
+    let cx = Ctx { n, t, k, accent };
     let id = n.id;
-    let critical = n.urgency >= 2;
-    let accent = if critical { c.danger.icon } else { tint(&n.app) };
-    let (pad, gap, _) = style.spacing();
-    let indent = match style.mark {
-        Mark::Letter => 28.0,
-        Mark::Dot => 16.0,
-        Mark::Stripe | Mark::None => 0.0,
-    };
-
-    let mut head = row().key("head").w_full().gap(8.0).center_y();
-    match style.mark {
-        Mark::Letter => {
-            let badge = el().key("badge").size(20.0, 20.0).radius(style.badge_radius()).center().fill(accent);
-            let badge = if critical {
-                badge.child(icon(&icons::WARNING_BOLD, 12.0).color(Color::WHITE))
-            } else {
-                let letter = n.app.chars().find(|ch| ch.is_alphanumeric()).unwrap_or('•').to_uppercase().to_string();
-                badge.child(text(letter).font(TextStyle::new(11.0, 650.0).lh(12.0)).color(Color::WHITE))
-            };
-            head = head.child(badge);
-        }
-        Mark::Dot => head = head.child(el().key("dot").size(8.0, 8.0).radius(4.0).fill(accent)),
-        Mark::Stripe | Mark::None => {}
-    }
-    let close = row()
-        .key("close")
-        .role("button")
-        .label("Dismiss")
-        .size(22.0, 22.0)
-        .center()
-        .radius(style.badge_radius().min(6.0))
-        .hover(c.hover)
-        .press(c.pressed)
-        .cursor(Cursor::Pointer)
-        .on_press(move |s: &mut S| s.dismiss(id))
-        .child(icon(k.glyph.close, 14.0).color(c.icon_muted));
-    head = head
-        .child(text(match &n.context {
-            Some(ctx) => format!("{} · {ctx}", n.app),
-            None => n.app.clone(),
-        }).key("app").font(k.ty.small_medium).color(c.text_muted).truncate().grow(1.0).shrink())
-        .child(text(n.time.clone()).key("time").font(k.ty.small).color(c.text_faint))
-        .child(close);
-
-    let mut content = col().key("content").w_full().gap(2.0).pl(indent);
-    if !n.summary.is_empty() {
-        content = content.child(text(n.summary.clone()).key("summary").font(k.ty.ui_medium).color(c.text_base).wrap().w_full());
-    }
-    if !n.body.is_empty() {
-        content = content.child(text(n.body.clone()).key("body").font(k.ty.ui).color(c.text_muted).wrap().w_full());
-    }
-    if let Some(v) = n.value {
-        content = content.child(el().key("progress").w_full().pt(6.0).child(Progress::new(Some(v)).build(k)));
-    }
-
-    let stripe = style.mark == Mark::Stripe;
+    let [pl, pt, pr, pb] = t.padding;
     let mut root = col()
         .key(format!("note-{id}"))
         .role("status")
         .label(n.summary.clone())
         .w_full()
-        .padding(pad)
-        .gap(gap)
-        .radius(style.radius())
-        .fill(c.layer_01)
-        .hover(k.alpha(c.white, if k.dark { 0.02 } else { 0.0 }))
+        .pl(pl)
+        .pt(pt)
+        .pr(pr)
+        .pb(pb)
+        .gap(t.gap)
+        .radius(t.radius)
+        .hover(k.alpha(k.c.white, if k.dark { 0.02 } else { 0.0 }))
         .cursor(Cursor::Pointer)
         // The overlay takes the pointer only over cards; everywhere else clicks pass through.
         .hit()
         .on_press(move |s: &mut S| s.activate(id));
-    if critical {
-        root = root.border(1.0, c.danger.border);
-    } else if style.border {
-        root = root.border(1.0, c.border_muted);
+    root = match &t.fill {
+        Fill::Solid(c) => root.fill(cx.paint(c)),
+        Fill::Gradient(a, b) => root.gradient(cx.paint(a), cx.paint(b)),
+    };
+    if let Some((w, c)) = &t.border {
+        root = root.border(*w, cx.paint(c));
     }
-    match style.depth {
-        Depth::Flat => {}
-        Depth::Soft | Depth::Deep => {
+    match t.shadow {
+        Lift::Flat => {}
+        Lift::Soft | Lift::Deep => {
             for sh in &k.elevation.overlay {
                 root = root.box_shadow(*sh);
             }
+            if t.shadow == Lift::Deep {
+                let a = if k.dark { 0.45 } else { 0.16 };
+                root = root.box_shadow(Shadow { y: 14.0, blur: 36.0, color: Color::BLACK.alpha(a), ..Default::default() });
+            }
+        }
+        Lift::Glow => {
+            root = root
+                .box_shadow(Shadow { blur: 28.0, color: accent.alpha(0.45), ..Default::default() })
+                .box_shadow(Shadow { blur: 6.0, color: accent.alpha(0.35), ..Default::default() });
         }
     }
-    if style.depth == Depth::Deep {
-        let a = if k.dark { 0.45 } else { 0.16 };
-        root = root.box_shadow(Shadow { y: 14.0, blur: 36.0, color: Color::BLACK.alpha(a), ..Default::default() });
-    }
-    let mut body = col().key("main").w_full().gap(gap).child(head).child(content);
-    if !n.actions.is_empty() {
-        let buttons = n.actions.iter().enumerate().map(|(i, (key, label))| {
-            let key = key.clone();
-            Button::new(label.clone())
-                .variant(if i == 0 { ButtonVariant::Neutral } else { ButtonVariant::Ghost })
-                .control_size(ControlSize::Regular)
-                .on_press(move |s: &mut S| s.invoke(id, &key))
-                .build(k)
-                .key(format!("action-{i}"))
-        });
-        body = body.child(row().key("actions").pl(indent).pt(4.0).gap(6.0).flex_wrap().children(buttons));
-    }
-    root = if stripe {
-        // The stripe stretches with the card's content, inset from its edge.
-        root.pl(pad - 4.0).child(
+    let content = render::<S>(&cx, &look.template);
+    root = if t.mark == Mark::Stripe {
+        // The stripe stretches with the content, inset from the card's edge.
+        root.pl((pl - 4.0).max(4.0)).child(
             row()
                 .key("ribbon")
                 .w_full()
                 .gap(9.0)
                 .items_stretch()
                 .child(el().key("stripe").w(3.0).radius(1.5).fill(accent))
-                .child(body.grow(1.0).shrink().w(0.0)),
+                .child(col().key("main").grow(1.0).shrink().w(0.0).gap(t.gap).children(content)),
         )
     } else {
-        root.child(body)
+        root.children(content)
     };
     let dx = if from_right { 48.0 } else { -48.0 };
-    let enter = Transition::offset(dx, 0.0).combined(Transition::opacity()).combined(Transition::scale(0.97));
-    let exit = Transition::move_edge(if from_right { Edge::Trailing } else { Edge::Leading }).combined(Transition::opacity());
-    root.transition(Transition::asymmetric(enter, exit)).motion(Spring::new(0.38, 0.12))
+    let (enter, exit) = match t.enter {
+        Enter::Slide => (
+            Transition::offset(dx, 0.0).combined(Transition::opacity()).combined(Transition::scale(0.97)),
+            Transition::move_edge(if from_right { Edge::Trailing } else { Edge::Leading }).combined(Transition::opacity()),
+        ),
+        Enter::Fade => (Transition::opacity(), Transition::opacity()),
+        Enter::Scale => (Transition::scale(0.9), Transition::scale(0.95)),
+        Enter::Drop => (Transition::offset(0.0, -24.0).combined(Transition::opacity()), Transition::offset(0.0, -12.0).combined(Transition::opacity())),
+    };
+    root.transition(Transition::asymmetric(enter, exit)).motion(Spring::new(t.motion.0, t.motion.1))
 }
 
 /// Notes that show off every part of a card, for previews and snapshots.
 pub fn samples() -> Vec<Note> {
-    let mut a = Note::new(1, "Slack", "Dax", "hokum looks sick. ship it before anyone sees the mako ones");
+    let mut a = Note::new(1, "Slack", "Dax", "hokum looks sick 👋 ship it before anyone sees the mako ones");
     a.context = Some("#abattoir".into());
     a.actions = vec![("reply".into(), "Reply".into()), ("later".into(), "Later".into())];
     a.has_default = true;
+    a.icon_src = crate::icons::for_app("", Some("slack"), "Slack").map(Source::File);
     let mut b = Note::new(2, "Volume", "Volume", "");
     b.value = Some(0.62);
     b.tag = Some("volume".into());
-    let c = Note::new(3, "Firefox", "Download complete", "hokum-x86_64.tar.zst · 4.2 MB");
+    b.icon_src = crate::icons::icon("audio-volume-high").map(Source::File);
+    let mut c = Note::new(3, "Firefox", "Download complete", "hokum-x86_64.tar.zst · 4.2 MB");
+    c.icon_src = crate::icons::for_app("", Some("firefox"), "Firefox").map(Source::File);
     let mut d = Note::new(4, "Battery", "Battery critically low", "4% remaining. Plug in now or the session will suspend.");
     d.urgency = 2;
     d.timeout = Timeout::Never;

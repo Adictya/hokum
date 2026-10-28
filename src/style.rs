@@ -29,6 +29,8 @@ pub enum Density {
 #[serde(rename_all = "kebab-case")]
 pub enum Mark {
     Letter,
+    /// The app's icon from the icon theme, or its letter when it has none.
+    Icon,
     Dot,
     Stripe,
     None,
@@ -105,7 +107,7 @@ pub const PRESETS: [(&str, Style); 4] = [
         Style {
             corners: Corners::Soft,
             density: Density::Comfortable,
-            mark: Mark::Letter,
+            mark: Mark::Icon,
             depth: Depth::Soft,
             width: Width::Medium,
             border: true,
@@ -127,7 +129,7 @@ pub const PRESETS: [(&str, Style); 4] = [
         Style {
             corners: Corners::Round,
             density: Density::Spacious,
-            mark: Mark::Letter,
+            mark: Mark::Icon,
             depth: Depth::Deep,
             width: Width::Wide,
             border: false,
@@ -202,6 +204,8 @@ pub struct Settings {
     pub pause_on_hover: bool,
     /// Only critical notifications show.
     pub do_not_disturb: bool,
+    /// The theme on top of the style: "" for none, a bundled theme's name, or a file's path.
+    pub theme: String,
 }
 
 impl Default for Settings {
@@ -214,6 +218,7 @@ impl Default for Settings {
             max_shown: 5,
             pause_on_hover: true,
             do_not_disturb: false,
+            theme: String::new(),
         }
     }
 }

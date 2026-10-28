@@ -1,0 +1,39 @@
+// Neon: a gradient card with a halo in each app's colour.
+theme "Neon"
+
+tokens {
+    radius 14
+    padding 14
+    fill "#191233" "#0c0819"
+    text "#f5edff"
+    muted "#bba9ea"
+    faint "#7d6caa"
+    border 1 "accent/70"
+    shadow "glow"
+    mark "dot"
+    title-weight 650
+    enter "scale"
+    motion 0.32 0.3
+}
+
+tokens "light" {
+    fill "#ffffff" "#f2ebff"
+    text "#22133f"
+    muted "#5a4889"
+    faint "#9a8bc3"
+}
+
+template "card" {
+    row gap=8 align="center" {
+        badge
+        text "{source|upper}" size=10 weight=700 tracking=1 color="accent" lines=1 grow=#true
+        text "{time}" size=11 color="faint"
+        close
+    }
+    col gap=3 indent=#true {
+        if "summary" { text "{summary}" size=15 weight="title" }
+        if "body" { text "{body}" color="muted" lines=5 }
+        if "value" { progress }
+    }
+    actions indent=#true
+}
