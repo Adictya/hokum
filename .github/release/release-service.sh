@@ -45,23 +45,47 @@ done
 temporary=$(mktemp -d)
 trap 'rm -rf "$temporary"' EXIT HUP INT TERM
 
-# The token stays in a curl config file, never in argv or the log.
+# GitHub's OIDC tokens expire five minutes after they are minted, and one
+# upload can take longer than that, so every attempt mints a fresh token. It
+# stays in a curl config file, never in argv or the log.
 token_config="$temporary/token.curl"
-(
-  umask 077
-  token=$(curl -fsS -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-    "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=$RELEASE" | jq -er .value)
-  printf 'header = "Authorization: Bearer %s"\n' "$token" > "$token_config"
-)
-
-# request <curl arguments>: an authenticated request; prints the body and
-# sets $status.
-request() {
-  status=$(curl -sS --config "$token_config" --retry 3 --retry-all-errors \
-    -o "$temporary/response" -w '%{http_code}' "$@") || {
-    echo "Request to the release service failed: $*" >&2
+mint_token() {
+  (
+    umask 077
+    token=$(curl -fsS --retry 3 -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+      "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=$RELEASE" | jq -er .value)
+    printf 'header = "Authorization: Bearer %s"\n' "$token" > "$token_config"
+  ) || {
+    echo "Could not get a GitHub OIDC token." >&2
     exit 1
   }
+}
+
+# request <curl arguments>: an authenticated request; prints the body and
+# sets $status. Failed transfers and 429/5xx answers are retried, each with a
+# fresh token; a transfer stalled below 1 KB/s for a minute counts as failed.
+request() {
+  attempt=1
+  while :; do
+    mint_token
+    if status=$(curl -sS --config "$token_config" --speed-limit 1024 --speed-time 60 \
+      -o "$temporary/response" -w '%{http_code}' "$@"); then
+      case "$status" in
+        429 | 5??) ;;
+        *) break ;;
+      esac
+      reason="the release service answered $status"
+    else
+      reason="the request failed"
+    fi
+    if [ "$attempt" -ge 4 ]; then
+      echo "Request to the release service failed after $attempt attempts ($reason): $*" >&2
+      exit 1
+    fi
+    echo "Attempt $attempt: $reason; retrying: $*" >&2
+    sleep $((attempt * 2))
+    attempt=$((attempt + 1))
+  done
   cat "$temporary/response"
 }
 
