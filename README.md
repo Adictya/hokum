@@ -5,7 +5,7 @@ Notifications for Wayland that look like they belong on a computer from this dec
 Hokum is a freedesktop notification daemon (`org.freedesktop.Notifications`) for compositors
 with `zwlr_layer_shell_v1`: niri, sway, Hyprland, river and others. It draws its cards with
 [Rune](https://github.com/anomalyco/rune), our Rust UI framework, so they slide in, restack on
-springs and get out of the way. A settings window lets you restyle them live.
+springs and get out of the way. A settings window picks a theme and sets how they behave.
 
 ## Install
 
@@ -55,11 +55,14 @@ click-through overlay and hosts the settings window. Launching `hokum` again sho
 - **One config file:** `~/.config/hokum/config.kdl` starts from a theme and overrides anything:
   look (`tokens`), layout (`template`), per-app and per-text `rule`s, and `behaviour`. The
   settings window edits the same file, keeping your comments, and hand edits apply as you save.
+  See [docs/theming.md](docs/theming.md).
 - **Themes:** eight built in (Soft, Crisp, Capsule, Ribbon, Terminal, Bubble, Signal, Pill), shown
-  in a gallery as real cards. Capsule, with app icons, is the default. Reference one and override bits, or clone it to change everything.
-  A Rhai script can rewrite or drop notifications too. See [docs/theming.md](docs/theming.md).
-- **Per app:** mute, how long its cards stay, its colour, breaking through Do not disturb, and
-  which layout it uses, for every app that has sent you a notification.
+  in a gallery as real cards. Capsule, with app icons, is the default. Custom themes are written
+  by your coding agent: the settings window gives you a prompt that points it at
+  [docs/themes.md](docs/themes.md), the complete guide to the format. A Rhai script can rewrite
+  or drop notifications too.
+- **Per app:** mute, how long its cards stay, and breaking through Do not disturb, for every app
+  that has sent you a notification.
 - **Icons and pictures:** app icons from your icon theme, and the pictures notifications carry
   (avatars, album art). Emoji draw in colour.
 - **Behaviour:** screen corner, how long cards stay, how many show, pause while hovered, and

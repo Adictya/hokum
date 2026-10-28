@@ -1,6 +1,6 @@
 //! Themes: KDL files that restyle (`tokens`), rearrange (`template`) and route (`rule`) cards.
 //! The built-in card is itself a template ([`DEFAULT`]), so everything Hokum draws goes through
-//! the same interpreter (`template.rs`). See `docs/theming.md` for the reference.
+//! the same interpreter (`template.rs`). See `docs/themes.md` for the reference.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -234,26 +234,6 @@ impl Overrides {
             ($($f:ident),*) => { $(if let Some(v) = &self.$f { t.$f = v.clone(); })* };
         }
         set!(width, radius, padding, gap, spacing, badge_radius, icon_size, font_size, title_weight, font, fill, text, muted, faint, border, accent, shadow, mark, enter, motion);
-    }
-
-    pub fn accent(&self) -> Option<&Paint> {
-        self.accent.as_ref()
-    }
-
-    /// Whether any of `keys` (token names) is set.
-    pub fn sets(&self, keys: &[&str]) -> bool {
-        keys.iter().any(|k| match *k {
-            "width" => self.width.is_some(),
-            "radius" => self.radius.is_some(),
-            "badge-radius" => self.badge_radius.is_some(),
-            "padding" => self.padding.is_some(),
-            "gap" => self.gap.is_some(),
-            "spacing" => self.spacing.is_some(),
-            "mark" => self.mark.is_some(),
-            "shadow" => self.shadow.is_some(),
-            "border" => self.border.is_some(),
-            _ => false,
-        })
     }
 
     /// `top`'s values over these.
@@ -592,14 +572,6 @@ impl Theme {
         t.templates.extend(top.templates.iter().map(|(k, v)| (k.clone(), v.clone())));
         t.rules.extend(top.rules.iter().cloned());
         t
-    }
-
-    /// Template names this theme can draw a card with, the default card first.
-    pub fn template_names(&self) -> Vec<String> {
-        let mut names: Vec<String> = self.templates.keys().filter(|k| *k != "card").cloned().collect();
-        names.sort();
-        names.insert(0, "card".into());
-        names
     }
 
     /// The behaviour this theme sets over the defaults.
@@ -1259,6 +1231,18 @@ mod tests {
         for (id, src) in BUNDLED {
             if let Err(e) = parse(src, id) {
                 panic!("{id}: {}", e.iter().map(|p| p.to_string()).collect::<Vec<_>>().join("; "));
+            }
+        }
+    }
+
+    #[test]
+    fn the_example_themes_in_the_docs_parse() {
+        let docs = include_str!("../docs/themes.md");
+        let examples: Vec<&str> = docs.split("```kdl\n").skip(1).filter_map(|b| b.split("```").next()).filter(|b| b.contains("\nname \"")).collect();
+        assert_eq!(examples.len(), 2);
+        for src in examples {
+            if let Err(e) = parse(src, "example") {
+                panic!("{}\n{src}", e.iter().map(|p| p.to_string()).collect::<Vec<_>>().join("; "));
             }
         }
     }

@@ -9,15 +9,15 @@ use std::path::PathBuf;
 
 use kdl::{KdlDocument, KdlEntry, KdlEntryFormat, KdlNode, KdlNodeFormat, KdlValue};
 
-use crate::style::{Behaviour, Legacy};
-use crate::theme::{Problem, Rule, Theme};
+use crate::style::{Behaviour, Depth, Legacy, LegacyStyle};
+use crate::theme::{Lift, Problem, Rule, Theme, Tokens};
 
 pub fn path() -> PathBuf {
     crate::style::path()
 }
 
 pub const DEFAULT: &str = r#"// Hokum's configuration. The settings window edits this file too, keeping your comments.
-// Reference: https://github.com/anomalyco/hokum/blob/main/docs/theming.md
+// Reference: https://github.com/anomalyco/hokum/blob/dev/docs/theming.md
 theme "capsule"
 "#;
 
@@ -104,22 +104,46 @@ fn migrate() -> Option<String> {
     if let Some(a) = legacy.appearance {
         e.set_behaviour("appearance", Value::Text(a.word().into()));
     }
-    // The old style sat under no theme; as adjustments it sits on Soft.
+    // The old style sat under no theme; as overrides it sits on Soft.
     if let (Some(s), true) = (legacy.style, base == "soft") {
-        let soft = crate::theme::resolve("soft").ok()?.base(true);
-        let adjust = crate::adjust::Adjust { base: &soft };
-        adjust.corners(&mut e, s.corners);
-        adjust.density(&mut e, s.density);
-        adjust.mark(&mut e, s.mark);
-        adjust.depth(&mut e, s.depth);
-        adjust.width(&mut e, s.width);
-        adjust.border(&mut e, s.border);
+        legacy_style(&mut e, s, &crate::theme::resolve("soft").ok()?.base(true));
     }
     let text = e.doc.to_string();
     if std::fs::write(path(), &text).is_ok() {
         let _ = std::fs::rename(&old, old.with_extension("json.migrated"));
     }
     Some(text)
+}
+
+/// The old look controls as tokens, written only where they differ from `soft`.
+fn legacy_style(e: &mut Edit, s: LegacyStyle, soft: &Tokens) {
+    let n = |v: f32| Value::Number(v as f64);
+    let (radius, badge) = s.corners.radii();
+    if (soft.radius, soft.badge_radius) != (radius, badge) {
+        e.set_token("radius", &[n(radius)]);
+        e.set_token("badge-radius", &[n(badge)]);
+    }
+    let (padding, gap, spacing) = s.density.spacing();
+    if (soft.padding, soft.gap, soft.spacing) != ([padding; 4], gap, spacing) {
+        e.set_token("padding", &[n(padding)]);
+        e.set_token("gap", &[n(gap)]);
+        e.set_token("spacing", &[n(spacing)]);
+    }
+    if soft.mark != s.mark {
+        e.set_token("mark", &[Value::Text(s.mark.word().into())]);
+    }
+    let same_depth = matches!((soft.shadow, s.depth), (Lift::Flat, Depth::Flat) | (Lift::Soft, Depth::Soft) | (Lift::Deep, Depth::Deep));
+    if !same_depth {
+        e.set_token("shadow", &[Value::Text(s.depth.word().into())]);
+    }
+    if soft.width != s.width.points() {
+        e.set_token("width", &[n(s.width.points())]);
+    }
+    match (soft.border.is_some(), s.border) {
+        (a, b) if a == b => {}
+        (_, true) => e.set_token("border", &[n(1.0), Value::Text("border".into())]),
+        (_, false) => e.set_token("border", &[Value::Text("none".into())]),
+    }
 }
 
 /// A value to write: Hokum spells it the way a person would.
@@ -325,13 +349,6 @@ impl Edit {
         Self::set_in(self.block("tokens"), key, values);
     }
 
-    pub fn remove_token(&mut self, key: &str) {
-        if self.doc.nodes().iter().any(|n| n.name().value() == "tokens") {
-            Self::remove_in(self.block("tokens"), key);
-            self.prune("tokens");
-        }
-    }
-
     pub fn set_behaviour(&mut self, key: &str, value: Value) {
         Self::set_in(self.block("behaviour"), key, &[value]);
     }
@@ -373,29 +390,9 @@ impl Edit {
         let create = value.is_some();
         let Some(rule) = self.app_rule(app, create) else { return };
         let block = rule.ensure_children();
-        match (action, value) {
-            ("accent", Some(v)) => {
-                let i = block.nodes().iter().position(|n| n.name().value() == "tokens");
-                let tokens = match i {
-                    Some(i) => block.nodes_mut()[i].ensure_children(),
-                    None => {
-                        let inner = format!("{}    ", indent(block));
-                        let text = v.iter().map(Value::repr).collect::<Vec<_>>().join(" ");
-                        let node = snippet(&format!("tokens {{\n{inner}accent {text}\n{}}}\n", indent(block)));
-                        push_child(block, node);
-                        return self.tidy(app);
-                    }
-                };
-                Self::set_in(tokens, "accent", &v);
-            }
-            ("accent", None) => {
-                if let Some(t) = block.nodes_mut().iter_mut().find(|n| n.name().value() == "tokens") {
-                    Self::remove_in(t.ensure_children(), "accent");
-                }
-                block.nodes_mut().retain(|n| !(n.name().value() == "tokens" && n.children().is_some_and(|c| c.nodes().is_empty())));
-            }
-            (key, Some(v)) => Self::set_in(block, key, &v),
-            (key, None) => Self::remove_in(block, key),
+        match value {
+            Some(v) => Self::set_in(block, action, &v),
+            None => Self::remove_in(block, action),
         }
         self.tidy(app);
     }
@@ -419,8 +416,6 @@ pub struct AppRule {
     pub interrupt: bool,
     /// Seconds, or 0 for until dismissed.
     pub stay: Option<f32>,
-    pub accent: Option<String>,
-    pub template: Option<String>,
 }
 
 /// Whether a rule is one the settings window manages: it matches one app by its exact name.
@@ -445,12 +440,6 @@ pub fn app_rules(own: &Theme) -> (Vec<(String, AppRule)>, usize) {
                 crate::card::Timeout::After(d) => d.as_secs_f32(),
                 _ => 0.0,
             }),
-            accent: match r.tokens.accent() {
-                Some(crate::theme::Paint::Literal(c)) => Some(c.hex()[..7].to_owned()),
-                Some(crate::theme::Paint::Named(n, _)) => Some(n.clone()),
-                None => None,
-            },
-            template: r.template.clone(),
         };
         match apps.iter_mut().find(|(a, _)| a.eq_ignore_ascii_case(app)) {
             Some((_, existing)) => *existing = rule,
@@ -479,20 +468,20 @@ mod tests {
 
     #[test]
     fn edits_keep_comments_and_order() {
-        let mut e = edit("// mine\ntheme \"signal\" // base\n\ntokens {\n    radius 10 // rounder\n    mark \"letter\"\n}\n");
-        e.set_token("radius", &[Value::Number(16.0)]);
-        e.set_token("border", &[Value::Number(1.0), Value::Text("border".into())]);
+        let mut e = edit("// mine\ntheme \"signal\" // base\n\ntokens {\n    radius 10 // rounder\n}\n\nbehaviour {\n    stay 10 // longer\n    position \"top-left\"\n}\n");
         e.set_theme("soft");
         e.set_behaviour("stay", Value::Number(4.0));
+        e.set_behaviour("show-at-most", Value::Number(3.0));
         assert_eq!(
             e.text(),
-            "// mine\ntheme \"soft\" // base\n\ntokens {\n    radius 16 // rounder\n    mark \"letter\"\n    border 1 \"border\"\n}\n\nbehaviour {\n    stay 4\n}\n"
+            "// mine\ntheme \"soft\" // base\n\ntokens {\n    radius 10 // rounder\n}\n\nbehaviour {\n    stay 4 // longer\n    position \"top-left\"\n    show-at-most 3\n}\n"
         );
-        e.remove_token("radius");
-        assert!(e.text().contains("tokens {\n    mark \"letter\"\n"), "the next token keeps its own line: {}", e.text());
-        e.remove_token("mark");
-        e.remove_token("border");
-        assert!(!e.text().contains("tokens"), "an empty block goes: {}", e.text());
+        e.remove_behaviour("stay");
+        assert!(e.text().contains("behaviour {\n    position \"top-left\"\n"), "the next key keeps its own line: {}", e.text());
+        e.remove_behaviour("position");
+        e.remove_behaviour("show-at-most");
+        assert!(!e.text().contains("behaviour"), "an empty block goes: {}", e.text());
+        assert!(e.text().contains("radius 10 // rounder"), "tokens are the file's: {}", e.text());
         crate::theme::parse(&e.text(), "x").unwrap();
     }
 
@@ -500,21 +489,29 @@ mod tests {
     fn app_rules_come_and_go_and_leave_hand_written_ones_alone() {
         let mut e = edit("theme \"soft\"\nrule app=\"Slack*\" { hide }\n");
         e.set_app("Spotify", "hide", Some(vec![]));
-        e.set_app("Slack", "accent", Some(vec![Value::Text("#d38be0".into())]));
         e.set_app("Slack", "timeout", Some(vec![Value::Number(3.0)]));
-        assert!(
-            e.text().contains("rule app=\"Slack\" {\n    tokens {\n        accent \"#d38be0\"\n    }\n    timeout 3\n}"),
-            "new rules read like hand-written ones:\n{}",
-            e.text()
-        );
+        e.set_app("Slack", "interrupt", Some(vec![]));
+        assert!(e.text().contains("rule app=\"Slack\" {\n    timeout 3\n    interrupt\n}"), "new rules read like hand-written ones:\n{}", e.text());
         let t = crate::theme::parse(&e.text(), "x").unwrap_or_else(|p| panic!("{p:?}\n{}", e.text()));
         let (apps, custom) = app_rules(&t);
         assert_eq!(custom, 1, "the glob rule isn't the window's");
         assert_eq!(apps.iter().map(|a| a.0.as_str()).collect::<Vec<_>>(), ["Spotify", "Slack"]);
-        assert!(apps[0].1.hide && apps[1].1.stay == Some(3.0));
+        assert!(apps[0].1.hide && apps[1].1.stay == Some(3.0) && apps[1].1.interrupt);
         e.set_app("Spotify", "hide", None);
-        e.set_app("Slack", "accent", None);
         e.set_app("Slack", "timeout", None);
+        e.set_app("Slack", "interrupt", None);
         assert_eq!(e.text(), "theme \"soft\"\nrule app=\"Slack*\" { hide }\n");
+    }
+
+    #[test]
+    fn app_rules_keep_styling_written_by_hand() {
+        let src = "rule app=\"Slack\" {\n    tokens { accent \"#d38be0\" }\n    template \"card\"\n}\n";
+        let mut e = edit(src);
+        e.set_app("Slack", "timeout", Some(vec![Value::Number(3.0)]));
+        e.set_app("Slack", "timeout", None);
+        assert_eq!(e.text(), src);
+        e.set_app("Slack", "hide", Some(vec![]));
+        let t = crate::theme::parse(&e.text(), "x").unwrap();
+        assert!(t.rules[0].hide && t.rules[0].template.as_deref() == Some("card") && t.rules[0].tokens != Default::default());
     }
 }

@@ -1,5 +1,5 @@
-//! The settings window's vocabulary: the choices its controls offer (and the tokens each one
-//! writes), the behaviour every theme and config resolves to, and where files live.
+//! The behaviour every theme and config resolves to, where files live, and the vocabulary of
+//! settings.json (from before config.kdl), read once to migrate.
 
 use std::path::PathBuf;
 
@@ -15,8 +15,6 @@ pub enum Corners {
 }
 
 impl Corners {
-    pub const ALL: [Corners; 4] = [Corners::Sharp, Corners::Rounded, Corners::Soft, Corners::Round];
-
     /// (radius, badge-radius)
     pub fn radii(self) -> (f32, f32) {
         match self {
@@ -37,8 +35,6 @@ pub enum Density {
 }
 
 impl Density {
-    pub const ALL: [Density; 3] = [Density::Compact, Density::Comfortable, Density::Spacious];
-
     /// (padding, gap inside a card, spacing between cards)
     pub fn spacing(self) -> (f32, f32, f32) {
         match self {
@@ -100,8 +96,6 @@ pub enum Width {
 }
 
 impl Width {
-    pub const ALL: [Width; 3] = [Width::Narrow, Width::Medium, Width::Wide];
-
     pub fn points(self) -> f32 {
         match self {
             Width::Narrow => 320.0,

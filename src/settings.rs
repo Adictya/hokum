@@ -1,7 +1,7 @@
-//! The settings window: an editor for config.kdl, hosted by the running service beside the
-//! overlay. Every control writes the file (keeping its comments) and the overlay restyles in
-//! the same process; editing the file by hand updates the window. The preview draws the same
-//! cards with the same code.
+//! The settings window, hosted by the running service beside the overlay. It picks a theme and
+//! sets behaviour and per-app routing in config.kdl (keeping its comments); the look itself is
+//! left to theme files, which coding agents write from docs/themes.md. Editing the file by hand
+//! updates the window. The preview draws the same cards with the same code.
 
 use std::collections::HashMap;
 
@@ -9,11 +9,10 @@ use rune::{AppSpec, Color, Cursor, Cx, El, Image, OverlayHandle, ScrollSpec, Tx,
 use rune_kit::{Button, ButtonVariant, ControlSize, Kit, SegmentedControl, Switch};
 use zbus::blocking::Connection;
 
-use crate::adjust::{self, Adjust};
 use crate::card::{Cards, Note, card, samples, tint};
 use crate::cards::stack;
 use crate::config::{AppRule, Edit, Loaded, Value};
-use crate::style::{Appearance, Corners, Density, Depth, Mark, Position, Width};
+use crate::style::{Appearance, Position};
 use crate::theme::Theme;
 use crate::watch::Config;
 
@@ -44,6 +43,7 @@ pub struct Ui {
     sent: u32,
     error: Option<String>,
     script: ScriptStatus,
+    copied: bool,
     /// Every theme the gallery offers: (id, name, the theme resolved).
     gallery: Vec<(String, String, Theme)>,
     /// Apps that have sent notifications, and apps the config has rules for.
@@ -89,6 +89,7 @@ impl Ui {
     /// The config, its theme and the script from files (at startup, and whenever they change).
     pub fn configure(&mut self, config: Config) {
         self.loaded = config.loaded;
+        self.copied = false;
         self.script = match config.script.as_deref().map(crate::script::Script::compile) {
             None => ScriptStatus::None,
             Some(Ok(_)) => ScriptStatus::Loaded,
@@ -120,34 +121,6 @@ impl Ui {
         self.edit(|e, _| e.set_theme(&id));
     }
 
-    /// Copies the current (bundled) theme into the themes folder, switches to the copy and
-    /// opens it.
-    fn clone_theme(&mut self) {
-        let id = self.loaded.base_id.clone();
-        let Some(src) = crate::theme::source(&id) else { return };
-        let dir = crate::theme::dir();
-        let stem = (1..).map(|i| if i == 1 { format!("my-{id}") } else { format!("my-{id}-{i}") }).find(|s| !dir.join(format!("{s}.kdl")).exists()).unwrap();
-        let path = dir.join(format!("{stem}.kdl"));
-        let name = self.loaded.base.name.clone();
-        let src = match src.lines().position(|l| l.trim_start().starts_with("name ")) {
-            Some(i) => src.lines().enumerate().map(|(j, l)| if j == i { format!("name \"My {name}\"") } else { l.to_owned() }).collect::<Vec<_>>().join("\n") + "\n",
-            None => format!("name \"My {name}\"\n{src}"),
-        };
-        let header = format!("// A copy of {name}, yours to change. Saving applies it.\n// Reference: https://github.com/anomalyco/hokum/blob/main/docs/theming.md\n");
-        if let Err(e) = std::fs::create_dir_all(&dir).and_then(|_| std::fs::write(&path, format!("{header}{src}"))) {
-            self.error = Some(format!("Couldn't write {}: {e}", path.display()));
-            return;
-        }
-        self.edit(|e, _| e.set_theme(&stem));
-        open(&path);
-    }
-
-    fn edit_theme(&mut self) {
-        if let Some(crate::theme::Found::File(p)) = crate::theme::find(&self.loaded.base_id) {
-            open(&p);
-        }
-    }
-
     fn edit_config(&mut self) {
         let p = crate::config::path();
         if !p.exists() {
@@ -172,20 +145,6 @@ impl Ui {
         open(&path);
     }
 
-    /// Writes a look control: `f` gets the theme's own tokens to compare against.
-    fn adjust(&mut self, f: impl FnOnce(&Adjust, &mut Edit)) {
-        let base = self.loaded.base.base(self.dark());
-        self.edit(|e, _| f(&Adjust { base: &base }, e));
-    }
-
-    fn reset_adjustments(&mut self) {
-        self.edit(|e, _| {
-            for k in adjust::KEYS {
-                e.remove_token(k);
-            }
-        });
-    }
-
     /// Writes one behaviour value, or removes it when it's what the theme already says.
     fn behave(&mut self, key: &'static str, value: Value, same: bool) {
         self.edit(|e, _| if same { e.remove_behaviour(key) } else { e.set_behaviour(key, value) });
@@ -193,10 +152,6 @@ impl Ui {
 
     fn set_app(&mut self, app: String, action: &'static str, value: Option<Vec<Value>>) {
         self.edit(|e, _| e.set_app(&app, action, value));
-    }
-
-    fn dark(&self) -> bool {
-        self.loaded.behaviour.appearance != Appearance::Light
     }
 
     /// Take `org.freedesktop.Notifications` from whichever daemon has it.
@@ -326,19 +281,11 @@ fn corner_picker(k: &Kit, current: Position, theme_value: Position) -> El {
     screen
 }
 
-const CORNERS: &[(Corners, &str)] =
-    &[(Corners::Sharp, "Sharp"), (Corners::Rounded, "Rounded"), (Corners::Soft, "Soft"), (Corners::Round, "Pill")];
-const DENSITY: &[(Density, &str)] = &[(Density::Compact, "Compact"), (Density::Comfortable, "Cozy"), (Density::Spacious, "Roomy")];
-const MARKS: &[(Mark, &str)] =
-    &[(Mark::Icon, "Icon"), (Mark::Letter, "Letter"), (Mark::Dot, "Dot"), (Mark::Stripe, "Stripe"), (Mark::None, "None")];
-const DEPTH: &[(Depth, &str)] = &[(Depth::Flat, "Flat"), (Depth::Soft, "Soft"), (Depth::Deep, "Deep")];
-const WIDTH: &[(Width, &str)] = &[(Width::Narrow, "Narrow"), (Width::Medium, "Medium"), (Width::Wide, "Wide")];
 const STAY: &[(u32, &str)] = &[(4, "4 s"), (6, "6 s"), (10, "10 s")];
 const SHOWN: &[(usize, &str)] = &[(3, "3"), (5, "5"), (8, "8")];
 const APPEARANCE: &[(Appearance, &str)] = &[(Appearance::System, "System"), (Appearance::Light, "Light"), (Appearance::Dark, "Dark")];
 /// Per-app stay: 0 is the theme's default, u32::MAX until dismissed.
 const APP_STAY: &[(u32, &str)] = &[(0, "Default"), (3, "3 s"), (10, "10 s"), (u32::MAX, "Pinned")];
-const ACCENTS: &[&str] = &["#e5484d", "#f76b15", "#ffc53d", "#46a758", "#0090ff", "#8e4ec6", "#d6409f"];
 
 fn status(k: &Kit, s: &Ui) -> El {
     let c = &k.c;
@@ -414,30 +361,32 @@ fn tile(s: &Ui, k: &Kit, i: usize, id: &str, name: &str, theme: &Theme) -> El {
 
 fn themes(s: &Ui, k: &Kit) -> El {
     let c = &k.c;
-    let tiles = s.gallery.iter().enumerate().map(|(i, (id, name, t))| tile(s, k, i, id, name, t));
-    let bundled = crate::theme::is_bundled(&s.loaded.base_id);
-    let mut actions = row().key("theme-actions").gap(4.0);
-    actions = if bundled {
-        actions.child(button(k, "clone", "Clone to edit", |s| s.clone_theme()))
-    } else {
-        actions.child(button(k, "edit-theme", "Edit theme", |s| s.edit_theme()))
-    };
-    actions = actions.child(button(k, "edit-config", "Edit config.kdl", |s| s.edit_config())).child(button(k, "open-folder", "Open folder", |_| {
-        let dir = crate::style::dir();
-        let _ = std::fs::create_dir_all(dir.join("themes"));
-        open(&dir);
-    }));
-    let mut top = col().key("theme-pick").w_full().padding(12.0).gap(12.0).child(row().key("tiles").w_full().gaps(12.0, 10.0).flex_wrap().children(tiles)).child(actions);
-    if bundled {
-        top = top.child(
-            text("Built-in themes are fixed; your changes below sit on top of them in config.kdl. Clone one to change everything.")
-                .key("about")
-                .font(k.ty.small)
-                .color(c.text_faint)
-                .wrap()
-                .w_full(),
-        );
+    let mut tiles: Vec<El> = s.gallery.iter().enumerate().map(|(i, (id, name, t))| tile(s, k, i, id, name, t)).collect();
+    let id = &s.loaded.base_id;
+    // A theme by path (or one that doesn't load) isn't in the gallery; show it anyway.
+    let found = s.loaded.base.id == *id;
+    let name = if found { s.loaded.base.name.as_str() } else { "Custom" };
+    if !s.gallery.iter().any(|g| g.0 == *id) {
+        tiles.push(tile(s, k, tiles.len(), id, name, &s.loaded.base));
     }
+    let actions = row()
+        .key("theme-actions")
+        .gap(4.0)
+        .child(button(k, "edit-config", "Edit config.kdl", |s| s.edit_config()))
+        .child(button(k, "open-folder", "Open folder", |_| {
+            let dir = crate::style::dir();
+            let _ = std::fs::create_dir_all(dir.join("themes"));
+            open(&dir);
+        }));
+    let mut top = col().key("theme-pick").w_full().padding(12.0).gap(12.0).child(row().key("tiles").w_full().gaps(12.0, 10.0).flex_wrap().children(tiles));
+    if !crate::theme::is_bundled(id) {
+        let line = match crate::theme::find(id) {
+            Some(crate::theme::Found::File(p)) => format!("Custom theme \u{201c}{name}\u{201d} from {}", home(&p)),
+            _ => format!("No theme called \u{201c}{id}\u{201d}; showing Capsule"),
+        };
+        top = top.child(text(line).key("custom").font(k.ty.small).color(c.text_muted).wrap().w_full().selectable(true));
+    }
+    top = top.child(actions);
     for (i, p) in s.loaded.problems.iter().take(6).enumerate() {
         top = top.child(text(p.to_string()).key(format!("problem-{i}")).font(k.ty.small.mono()).color(c.danger.fg).wrap().w_full());
     }
@@ -459,29 +408,63 @@ fn themes(s: &Ui, k: &Kit) -> El {
     section(k, "themes", heading(k, "Theme"), vec![top, script])
 }
 
-fn adjustments(s: &Ui, k: &Kit) -> El {
-    let t = s.loaded.theme.base(k.dark);
-    let adjusted = s.loaded.own.tokens.sets(adjust::KEYS);
-    let mut title = row().key("adjust-title").w_full().center_y().pr(4.0).child(heading(k, format!("Adjust {}", s.loaded.base.name)).grow(1.0));
-    if adjusted {
-        title = title.child(button(k, "reset", "Reset", |s| s.reset_adjustments()));
-    }
-    section(
-        k,
-        "adjust",
-        title,
-        vec![
-            setting(k, "corners", "Corners", None, choice(k, "corners-control", CORNERS, adjust::corners(&t), 340.0, |s, v| s.adjust(|a, e| a.corners(e, v)))),
-            setting(k, "density", "Density", None, choice(k, "density-control", DENSITY, adjust::density(&t), 340.0, |s, v| s.adjust(|a, e| a.density(e, v)))),
-            setting(k, "mark", "App mark", Some("How a card shows who sent it"), choice(k, "mark-control", MARKS, Some(t.mark), 340.0, |s, v| s.adjust(|a, e| a.mark(e, v)))),
-            setting(k, "depth", "Shadow", None, choice(k, "depth-control", DEPTH, adjust::depth(&t), 340.0, |s, v| s.adjust(|a, e| a.depth(e, v)))),
-            setting(k, "width", "Width", None, choice(k, "width-control", WIDTH, adjust::width(&t), 340.0, |s, v| s.adjust(|a, e| a.width(e, v)))),
-            toggle(k, "border", "Border", None, t.border.is_some(), move |s: &mut Ui| {
-                let on = s.loaded.theme.base(s.dark()).border.is_some();
-                s.adjust(|a, e| a.border(e, !on))
-            }),
-        ],
-    )
+const DOCS: &str = "https://github.com/anomalyco/hokum/blob/dev/docs/themes.md";
+const PROMPT: &str =
+    "Read https://github.com/anomalyco/hokum/blob/dev/docs/themes.md and create a Hokum theme for me, then switch my config to it. I want it to look like: ";
+
+/// Custom themes are written by a coding agent from the docs, not in this window.
+fn own_theme(s: &Ui, k: &Kit) -> El {
+    let c = &k.c;
+    let body = col()
+        .key("own")
+        .w_full()
+        .padding(12.0)
+        .gap(10.0)
+        .child(
+            text("A theme can change every part of a card, more than this window can show. Ask your coding agent to write one: paste this prompt and describe the look you want.")
+                .key("about")
+                .font(k.ty.small)
+                .color(c.text_muted)
+                .wrap()
+                .w_full(),
+        )
+        .child(
+            col()
+                .key("prompt")
+                .w_full()
+                .padding(10.0)
+                .radius(8.0)
+                .fill(c.bg_deep)
+                .border(1.0, c.border_muted)
+                .child(text(PROMPT).key("text").font(k.ty.small.mono()).color(c.text_base).wrap().w_full().selectable(true)),
+        )
+        .child(
+            row()
+                .key("own-actions")
+                .gap(4.0)
+                .child(
+                    Button::new(if s.copied { "Copied" } else { "Copy prompt" })
+                        .variant(ButtonVariant::Ghost)
+                        .control_size(ControlSize::Regular)
+                        .on_press_tx(|s: &mut Ui, tx: &mut Tx| {
+                            tx.copy(PROMPT);
+                            s.copied = true;
+                        })
+                        .build(k)
+                        .key("copy-prompt"),
+                )
+                .child(
+                    Button::new("Open the guide")
+                        .variant(ButtonVariant::Ghost)
+                        .control_size(ControlSize::Regular)
+                        .on_press_tx(|_: &mut Ui, tx: &mut Tx| {
+                            let _ = tx.open_url(DOCS);
+                        })
+                        .build(k)
+                        .key("open-docs"),
+                ),
+        );
+    section(k, "own-theme", heading(k, "Make your own theme"), vec![body])
 }
 
 fn behaviour(s: &Ui, k: &Kit) -> El {
@@ -523,7 +506,7 @@ fn behaviour(s: &Ui, k: &Kit) -> El {
 }
 
 /// One app's choices, kept as `rule app="…"` in config.kdl.
-fn app_row(s: &Ui, k: &Kit, i: usize, app: &str, rule: &AppRule, templates: &[String]) -> El {
+fn app_row(s: &Ui, k: &Kit, i: usize, app: &str, rule: &AppRule) -> El {
     let c = &k.c;
     let mark = match s.icons.get(app).cloned().flatten() {
         Some(img) => el().key("icon").size(22.0, 22.0).radius(6.0).pixels_fit(img.pixels(), rune::SurfaceFit::Fit),
@@ -571,32 +554,6 @@ fn app_row(s: &Ui, k: &Kit, i: usize, app: &str, rule: &AppRule, templates: &[St
                 },
             )),
         );
-        let current = rule.accent.clone();
-        let mut swatches = row().key("swatches").gap(6.0).center_y();
-        let name = app.to_owned();
-        swatches = swatches.child(
-            el().key("default")
-                .size(20.0, 20.0)
-                .radius(10.0)
-                .fill(tint(app))
-                .border(2.0, if current.is_none() { c.text_base } else { Color::TRANSPARENT })
-                .cursor(Cursor::Pointer)
-                .on_press(move |s: &mut Ui| s.set_app(name.clone(), "accent", None)),
-        );
-        for (j, hex) in ACCENTS.iter().enumerate() {
-            let name = app.to_owned();
-            let on = current.as_deref() == Some(*hex);
-            swatches = swatches.child(
-                el().key(format!("accent-{j}"))
-                    .size(20.0, 20.0)
-                    .radius(10.0)
-                    .fill(rune::color::hex(hex).unwrap_or(Color::WHITE))
-                    .border(2.0, if on { c.text_base } else { Color::TRANSPARENT })
-                    .cursor(Cursor::Pointer)
-                    .on_press(move |s: &mut Ui| s.set_app(name.clone(), "accent", Some(vec![Value::Text((*hex).into())]))),
-            );
-        }
-        body = body.child(row().key("accent").w_full().gap(10.0).center_y().pl(32.0).child(text("Colour").key("label").font(k.ty.small).color(c.text_muted).w(64.0)).child(swatches));
         let name = app.to_owned();
         let interrupt = rule.interrupt;
         body = body.child(
@@ -609,31 +566,6 @@ fn app_row(s: &Ui, k: &Kit, i: usize, app: &str, rule: &AppRule, templates: &[St
                 .child(text("Show during Do not disturb").key("label").font(k.ty.small).color(c.text_muted).grow(1.0).shrink())
                 .child(Switch::new(interrupt).hide_label().on_toggle(move |s: &mut Ui| s.set_app(name.clone(), "interrupt", (!interrupt).then(Vec::new))).build(k)),
         );
-        if templates.len() > 1 {
-            let mut layouts = row().key("layouts").gap(4.0).flex_wrap();
-            for (j, t) in templates.iter().enumerate() {
-                let on = rule.template.as_deref().unwrap_or("card") == t;
-                let name = app.to_owned();
-                let pick = t.clone();
-                layouts = layouts.child(
-                    row()
-                        .key(format!("layout-{j}"))
-                        .h(26.0)
-                        .px(10.0)
-                        .center_y()
-                        .radius(6.0)
-                        .fill(if on { c.layer_02 } else { Color::TRANSPARENT })
-                        .border(1.0, if on { c.border_strong } else { c.border_muted })
-                        .cursor(Cursor::Pointer)
-                        .on_press(move |s: &mut Ui| {
-                            let value = (pick != "card").then(|| vec![Value::Text(pick.clone())]);
-                            s.set_app(name.clone(), "template", value)
-                        })
-                        .child(text(if t == "card" { "Default".to_owned() } else { t.clone() }).font(k.ty.small).color(if on { c.text_base } else { c.text_muted })),
-                );
-            }
-            body = body.child(row().key("layout").w_full().gap(10.0).center_y().pl(32.0).child(text("Layout").key("label").font(k.ty.small).color(c.text_muted).w(64.0)).child(layouts));
-        }
     }
     body
 }
@@ -641,14 +573,13 @@ fn app_row(s: &Ui, k: &Kit, i: usize, app: &str, rule: &AppRule, templates: &[St
 fn apps(s: &Ui, k: &Kit) -> El {
     let c = &k.c;
     let (rules, custom) = crate::config::app_rules(&s.loaded.own);
-    let templates = s.loaded.theme.template_names();
     let mut rows: Vec<El> = s
         .apps
         .iter()
         .enumerate()
         .map(|(i, app)| {
             let rule = rules.iter().find(|(a, _)| a.eq_ignore_ascii_case(app)).map(|(_, r)| r.clone()).unwrap_or_default();
-            app_row(s, k, i, app, &rule, &templates)
+            app_row(s, k, i, app, &rule)
         })
         .collect();
     if rows.is_empty() {
@@ -697,7 +628,7 @@ fn sidebar(s: &Ui, k: &Kit) -> El {
     if let Some(e) = &s.error {
         content = content.child(text(e.clone()).key("error").font(k.ty.small).color(c.danger.fg).wrap().w_full());
     }
-    content = content.child(themes(s, k)).child(adjustments(s, k)).child(behaviour(s, k)).child(apps(s, k));
+    content = content.child(themes(s, k)).child(own_theme(s, k)).child(behaviour(s, k)).child(apps(s, k));
     col().key("sidebar").w(SIDEBAR).h_full().fill(c.page).scroll(ScrollSpec { stick_bottom: false }).clip_fade(0.0, 0.0, 0.0, 16.0).child(content)
 }
 
@@ -748,6 +679,7 @@ pub fn init() -> Ui {
         sent: 0,
         error: None,
         script: ScriptStatus::None,
+        copied: false,
         gallery: Vec::new(),
         apps: Vec::new(),
         icons: HashMap::new(),
@@ -757,6 +689,14 @@ pub fn init() -> Ui {
     };
     ui.configure(crate::watch::load());
     ui
+}
+
+/// A path with the home folder as `~`.
+fn home(p: &std::path::Path) -> String {
+    match std::env::var_os("HOME").and_then(|h| p.strip_prefix(h).ok().map(|r| r.display().to_string())) {
+        Some(rest) => format!("~/{rest}"),
+        None => p.display().to_string(),
+    }
 }
 
 /// Opens a file or folder in the desktop's handler for it.
