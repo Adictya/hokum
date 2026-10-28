@@ -83,6 +83,25 @@ fn slack(summary: &str, body: &str) -> Option<(String, String, String)> {
     Some(("Direct message".to_owned(), sender.to_owned(), body.to_owned()))
 }
 
+/// Splits Notify's flat `[key, label, …]` list into whether there is a default action and the
+/// buttons to show.
+fn split_actions(actions: &[String]) -> (bool, Vec<(String, String)>) {
+    let mut has_default = false;
+    let mut buttons = Vec::new();
+    for pair in actions.chunks(2) {
+        let (key, label) = (pair[0].clone(), pair.get(1).cloned().unwrap_or_default());
+        match key.as_str() {
+            "default" => has_default = true,
+            // Chromium adds a per-site notification "Settings" button (label localized) to
+            // every web notification; KDE Plasma hides it the same way.
+            "settings" => {}
+            _ if !label.is_empty() => buttons.push((key, label)),
+            _ => {}
+        }
+    }
+    (has_default, buttons)
+}
+
 #[zbus::interface(name = "org.freedesktop.Notifications")]
 impl Server {
     fn get_capabilities(&self) -> Vec<&'static str> {
@@ -133,14 +152,7 @@ impl Server {
             })
             // The app's own icon isn't a picture of the notification.
             .filter(|img| Some(img) != n.icon_src.as_ref());
-        for pair in actions.chunks(2) {
-            let (key, label) = (pair[0].clone(), pair.get(1).cloned().unwrap_or_default());
-            if key == "default" {
-                n.has_default = true;
-            } else if !label.is_empty() {
-                n.actions.push((key, label));
-            }
-        }
+        (n.has_default, n.actions) = split_actions(&actions);
         n.timeout = match expire_timeout {
             0 => Timeout::Never,
             t if t > 0 => Timeout::After(Duration::from_millis(t as u64)),
@@ -280,4 +292,28 @@ pub fn serve(
 pub fn forward(token: &str) -> bool {
     let Ok(conn) = Connection::session() else { return false };
     conn.call_method(Some(NAME), SETTINGS_PATH, Some(SETTINGS_IFACE), "Activate", &(token,)).is_ok()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::split_actions;
+
+    fn strings(v: &[&str]) -> Vec<String> {
+        v.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn actions_skip_default_settings_and_unlabeled() {
+        let (has_default, buttons) =
+            split_actions(&strings(&["default", "Activate", "reply", "Reply", "settings", "Einstellungen", "mute", ""]));
+        assert!(has_default);
+        assert_eq!(buttons, vec![("reply".to_string(), "Reply".to_string())]);
+    }
+
+    #[test]
+    fn odd_trailing_key_is_dropped() {
+        let (has_default, buttons) = split_actions(&strings(&["open", "Open", "dangling"]));
+        assert!(!has_default);
+        assert_eq!(buttons, vec![("open".to_string(), "Open".to_string())]);
+    }
 }

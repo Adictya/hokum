@@ -27,7 +27,7 @@ pub struct Note {
     pub context: Option<String>,
     pub summary: String,
     pub body: String,
-    /// (key, label) without the default action.
+    /// (key, label) without the default action or Chromium's "settings".
     pub actions: Vec<(String, String)>,
     pub has_default: bool,
     /// 0 low, 1 normal, 2 critical.
