@@ -22,16 +22,18 @@ const HEIGHT: f32 = 820.0;
 const HIDE_AFTER: Duration = Duration::from_millis(900);
 
 /// Why a notification closed (the spec's reasons).
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Reason {
     Expired = 1,
     Dismissed = 2,
     Closed = 3,
 }
 
+#[derive(Debug, PartialEq)]
 pub enum Out {
     Closed(u32, Reason),
-    Action(u32, String),
+    /// An action key, with an activation token from the click when the compositor gave one.
+    Action(u32, String, Option<String>),
 }
 
 pub struct Ui {
@@ -225,8 +227,10 @@ impl Cards for Ui {
     }
 
     fn invoke(&mut self, id: u32, key: &str) {
-        let resident = self.notes.iter().find(|n| n.id == id).is_some_and(|n| n.resident);
-        let _ = self.out.send(Out::Action(id, key.to_owned()));
+        let note = self.notes.iter().find(|n| n.id == id);
+        let resident = note.is_some_and(|n| n.resident);
+        let token = rune::press_activation_token(note.and_then(|n| n.desktop.as_deref()));
+        let _ = self.out.send(Out::Action(id, key.to_owned(), token));
         if !resident {
             self.dismiss(id);
         }
@@ -426,4 +430,66 @@ pub fn headless() {
         ..AppSpec::new("Hokum", size(&theme, true), headless_state, headless_view)
     };
     rune::App::new(spec).run();
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::mpsc::{Receiver, channel};
+
+    use super::*;
+
+    fn ui() -> (Ui, Receiver<Out>) {
+        let (out, rx) = channel();
+        let mut ui = Ui::new(crate::watch::load(), out, channel().0);
+        ui.script = None;
+        ui.settings = Behaviour::default();
+        ui.theme = crate::theme::resolve("").unwrap();
+        (ui, rx)
+    }
+
+    fn note(id: u32, default: bool) -> Note {
+        let mut n = Note::new(id, "Slack", "Dax", "ship it");
+        n.has_default = default;
+        n.desktop = Some("slack".into());
+        n.actions = vec![("reply".into(), "Reply".into())];
+        n
+    }
+
+    #[test]
+    fn clicking_a_card_invokes_default_then_closes_it_dismissed() {
+        let (mut ui, rx) = ui();
+        ui.notes.push(note(7, true));
+        ui.activate(7);
+        let out: Vec<Out> = rx.try_iter().collect();
+        assert_eq!(out, vec![Out::Action(7, "default".into(), None), Out::Closed(7, Reason::Dismissed)]);
+    }
+
+    #[test]
+    fn a_button_invokes_its_own_key() {
+        let (mut ui, rx) = ui();
+        ui.notes.push(note(7, true));
+        ui.invoke(7, "reply");
+        let out: Vec<Out> = rx.try_iter().collect();
+        assert_eq!(out, vec![Out::Action(7, "reply".into(), None), Out::Closed(7, Reason::Dismissed)]);
+    }
+
+    #[test]
+    fn resident_cards_stay_after_an_action() {
+        let (mut ui, rx) = ui();
+        let mut n = note(7, true);
+        n.resident = true;
+        ui.notes.push(n);
+        ui.activate(7);
+        let out: Vec<Out> = rx.try_iter().collect();
+        assert_eq!(out, vec![Out::Action(7, "default".into(), None)]);
+    }
+
+    #[test]
+    fn without_a_default_action_a_click_only_dismisses() {
+        let (mut ui, rx) = ui();
+        ui.notes.push(note(7, false));
+        ui.activate(7);
+        let out: Vec<Out> = rx.try_iter().collect();
+        assert_eq!(out, vec![Out::Closed(7, Reason::Dismissed)]);
+    }
 }

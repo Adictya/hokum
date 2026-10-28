@@ -143,6 +143,7 @@ impl Server {
         n.resident = hint::<bool>(&hints, "resident").unwrap_or(false);
         let desktop = hint::<String>(&hints, "desktop-entry");
         n.icon_src = crate::icons::for_app(&app_icon, desktop.as_deref(), &n.app).map(Source::File);
+        n.desktop = desktop;
         n.image_src = ["image-data", "image_data", "icon_data"]
             .iter()
             .find_map(|k| hints.get(*k).and_then(image_data))
@@ -280,7 +281,13 @@ pub fn serve(
         for out in out {
             let _ = match out {
                 Out::Closed(id, reason) => emit.emit_signal(None::<&str>, PATH, NAME, "NotificationClosed", &(id, reason as u32)),
-                Out::Action(id, key) => emit.emit_signal(None::<&str>, PATH, NAME, "ActionInvoked", &(id, key)),
+                Out::Action(id, key, token) => {
+                    // Spec 1.2: the token first, so the app can raise its window on Wayland.
+                    if let Some(token) = token {
+                        let _ = emit.emit_signal(None::<&str>, PATH, NAME, "ActivationToken", &(id, token));
+                    }
+                    emit.emit_signal(None::<&str>, PATH, NAME, "ActionInvoked", &(id, key))
+                }
             };
         }
     });
