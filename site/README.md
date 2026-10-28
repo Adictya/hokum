@@ -21,13 +21,25 @@ agents get.
 | `docs/themes.md` | The theme guide (markdown) |
 | `themes/*.kdl` | The built-in theme sources (markdown) |
 | `story.js` | The story as data: `STORY_TRUNK` (everyone sees it), then `STORY_BRANCHES` (six endings) |
-| `hero.js` | The cards: Capsule's look and spring, stacking, the "N more" pill, drag, fling, dismiss, the desktop clock, skip and replay |
+| `hero.js` | The cards: Capsule's look and spring, stacking, the "N more" pill, drag, fling, dismiss, the clock, and Replay once the story ends |
 
 Each visit plays the trunk and one random branch; Replay picks one not seen yet. `?branch=1..6`
 or `?branch=gig|agent|world|legend|dead|empire` forces one, `?t=60` starts 60 s in. The
 prototype at https://anoma.ly/labs/hokum-story (branch `hero-story`) runs the same `story.js`
 and `hero.js` logic; keep them in sync. The story pauses while scrolled off screen, and
 `prefers-reduced-motion` keeps the script without the movement.
+
+## The settings window picture
+
+The page's one image, `assets/settings.webp` (2x) and `assets/settings-1x.webp`, is Hokum's
+settings window rendered by the real app. Regenerate it after the window changes:
+
+```sh
+site/scripts/settings-shot.sh            # builds origin/dev on apollo (HOKUM_GPU_HOST), snapshots, converts
+```
+
+It builds a throwaway clone with its own target dir and runs `hokum --snap … --scene hokum
+--scale 2 --theme dark` with a throwaway HOME and config (Capsule), then cleans up the host.
 
 ## Who gets markdown
 

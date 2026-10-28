@@ -115,12 +115,12 @@
     return `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`
   }
   let lastClock = ""
+  // Fixed width, so the line never shifts as it ticks: three-letter names, two-digit day and hour.
+  const pad = (n) => String(n).padStart(2, "0")
   function setClock(ms) {
     const d = new Date(ms)
-    const narrow = body.clientWidth < 520
-    const text = narrow
-      ? `${MONTHS[d.getMonth()]} ${d.getDate()} ${d.getFullYear()}  ${hm(d)}`
-      : `${DAYS[d.getDay()]} ${MONTHS[d.getMonth()]} ${d.getDate()} ${d.getFullYear()}   ${hm(d)}`
+    const h = d.getHours() % 12 || 12
+    const text = `${DAYS[d.getDay()]} ${MONTHS[d.getMonth()]} ${pad(d.getDate())} ${d.getFullYear()}  ${pad(h)}:${pad(d.getMinutes())} ${d.getHours() < 12 ? "AM" : "PM"}`
     if (text !== lastClock) clock.textContent = lastClock = text
   }
 
@@ -182,9 +182,12 @@
     if (c.leaving) return
     if (delay) return void setTimeout(() => leave(c), delay)
     c.leaving = true
-    c.tx = geo.w + 40
+    // A short glide out while it fades, as Hokum's cards leave. (Gliding the card's full width
+    // used to carry it past the column, where it showed beside the stack as a ghost.)
+    c.tx = 56
     c.to = 0
     c.el.style.pointerEvents = "none"
+    c.el.style.zIndex = "0"
     if (reduce.matches) remove(c)
     layout()
   }
@@ -205,6 +208,7 @@
         c.to = 1
         c.ts = 1
         c.el.style.pointerEvents = ""
+        c.el.style.zIndex = "2"
         y += c.h + GAP
         shown++
       } else {
@@ -213,6 +217,7 @@
         c.to = 0
         c.ts = 0.94
         c.el.style.pointerEvents = "none"
+        c.el.style.zIndex = "1"
       }
     }
     more.classList.toggle("on", hidden > 0)
@@ -274,6 +279,7 @@
   let t = 0
   let next = 0
   let quieted = false
+  let replayAt = 0
   let last = performance.now()
   let onscreen = true
   new IntersectionObserver(([e]) => (onscreen = e.isIntersecting)).observe(body)
@@ -284,7 +290,12 @@
 
   function fire(s) {
     if (s.scene) body.dataset.scene = s.scene
-    if (s.final) body.classList.add("end")
+    if (s.final) {
+      body.classList.add("end")
+      // Replay shows once Gary's last word has sat there for a beat.
+      clearTimeout(replayAt)
+      replayAt = setTimeout(() => body.classList.add("over"), reduce.matches ? 1200 : 3000)
+    }
     make(s)
   }
 
@@ -351,20 +362,10 @@
     next = 0
     quieted = false
     delete body.dataset.scene
-    body.classList.remove("end")
+    body.classList.remove("end", "over")
+    clearTimeout(replayAt)
     layout()
   }
-  function skip() {
-    if (body.classList.contains("end")) return
-    t = Math.max(t, FINAL.at)
-    next = STORY.indexOf(FINAL)
-    const space = STORY.slice(0, next).reverse().find((s) => s.scene)
-    if (space) body.dataset.scene = space.scene
-    quieted = true
-    cards.forEach((c) => leave(c))
-    fire(STORY[next++])
-  }
-  document.getElementById("skip").addEventListener("click", skip)
   document.getElementById("replay").addEventListener("click", reset)
   addEventListener("resize", () => { measureGeo(); layout() })
 

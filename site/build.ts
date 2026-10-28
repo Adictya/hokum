@@ -186,7 +186,7 @@ This is ${origin}, the whole site as one markdown document: installing and using
 configuration reference, the complete guide to writing a theme, and the source of every
 built-in theme. Browsers get the same page as HTML, which opens on a crime story told entirely
 in notification cards, stacking up in the corner of a desktop, with one of six endings picked at
-random. If you are a coding agent asked to make a
+random. Below the story is one picture of the settings window, where you pick a theme. If you are a coding agent asked to make a
 Hokum theme, read [Writing a theme](#${anchors.get("themes#")}) and
 [Checking your work](#${anchors.get("themes#checking-your-work")}), then write the theme file
 and set \`theme "<id>"\` in the user's config.
@@ -232,6 +232,27 @@ for (const m of installMd.slice(0, installMd.indexOf("Hokum starts through D-Bus
 }
 // No Hokum logo yet: the favicon is a plain lettermark.
 const favicon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#111114"/><text x="16" y="22.5" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="19" font-weight="700" fill="#f2f2ef">H</text></svg>`
+// The one picture: the settings window, rendered by Hokum itself (scripts/settings-shot.sh).
+// WebP headers carry the canvas size; read it so the image reserves its space.
+function webpSize(file: string) {
+  const b = readFileSync(join(site, "assets", file))
+  const fourcc = b.toString("ascii", 12, 16)
+  if (fourcc === "VP8X") return [1 + b.readUIntLE(24, 3), 1 + b.readUIntLE(27, 3)]
+  if (fourcc === "VP8L") {
+    const bits = b.readUInt32LE(21)
+    return [(bits & 0x3fff) + 1, ((bits >> 14) & 0x3fff) + 1]
+  }
+  return [b.readUInt16LE(26) & 0x3fff, b.readUInt16LE(28) & 0x3fff]
+}
+const [shotW, shotH] = webpSize("settings.webp")
+const avif = existsSync(join(site, "assets", "settings.avif"))
+const settingsShot = `<figure class="shot">
+    <picture>
+      ${avif ? `<source type="image/avif" srcset="/assets/settings.avif ${shotW}w">` : ""}
+      <img src="/assets/settings.webp" srcset="/assets/settings-1x.webp ${shotW / 2}w, /assets/settings.webp ${shotW}w" sizes="(max-width: 1240px) calc(100vw - 40px), 1160px" width="${shotW / 2}" height="${shotH / 2}" loading="lazy" decoding="async" alt="Hokum's settings window: Appearance, with the theme gallery and a preview of the cards">
+    </picture>
+  </figure>`
+
 // The Anomaly signature behind the copyright line, as on opentunnel.xyz (and the opencode console).
 const signature = readFileSync(join(site, "footer-signature.svg"), "utf8")
 const githubIcon = `<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>`
@@ -306,12 +327,10 @@ ${products.map((p) => `        <a class="menu-item" href="${p.url}">${productIco
       <div class="clock" id="clock" aria-hidden="true"></div>
       <div class="stack" id="stack" aria-live="polite" aria-label="Notifications"></div>
       <div class="more" id="more" aria-hidden="true"></div>
-      <nav class="controls" aria-label="Story">
-        <button id="skip" type="button">skip</button>
-        <button id="replay" type="button">replay</button>
-      </nav>
+      <button id="replay" class="replay" type="button">replay</button>
     </div>
   </div>
+  ${settingsShot}
 </div>
 
 <footer class="site-footer">
