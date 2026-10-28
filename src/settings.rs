@@ -17,8 +17,8 @@ use crate::theme::Theme;
 use crate::watch::Config;
 
 const NAV: f32 = 200.0;
-const CONTENT: f32 = 540.0;
-pub const SIZE: (f32, f32) = (1240.0, 780.0);
+const CONTENT: f32 = 560.0;
+pub const SIZE: (f32, f32) = (1260.0, 780.0);
 
 /// Whether this process answers `org.freedesktop.Notifications`.
 #[derive(Clone, PartialEq, Debug)]
@@ -374,12 +374,13 @@ fn themes(s: &Ui, k: &Kit) -> El {
     let mut top = col().key("theme-pick").w_full().padding(12.0).gap(12.0).child(row().key("tiles").w_full().gaps(12.0, 10.0).flex_wrap().children(tiles));
     if !crate::theme::is_bundled(id) {
         let line = match crate::theme::find(id) {
-            Some(crate::theme::Found::File(p)) => format!("Custom theme \u{201c}{name}\u{201d} from {}", home(&p)),
+            Some(crate::theme::Found::File(p)) if found => format!("Custom theme \u{201c}{name}\u{201d} from {}", home(&p)),
+            Some(crate::theme::Found::File(p)) => format!("{} has problems; showing Capsule", home(&p)),
             _ => format!("No theme called \u{201c}{id}\u{201d}; showing Capsule"),
         };
         top = top.child(text(line).key("custom").font(k.ty.small).color(c.text_muted).wrap().w_full().selectable(true));
     }
-    let mode = setting(k, "appearance", "Appearance", Some("Light or dark cards, or follow the system"), {
+    let mode = setting(k, "appearance", "Appearance", None, {
         choice(k, "appearance-control", APPEARANCE, Some(s.loaded.behaviour.appearance), 240.0, move |s, v| {
             s.behave("appearance", Value::Text(v.word().into()), v == Behaviour::default().appearance)
         })
@@ -612,7 +613,7 @@ fn apps(s: &Ui, k: &Kit) -> El {
         rows.push(text("Apps show up here once they've sent a notification.").key("empty").font(k.ty.small).color(c.text_muted).px(12.0).py(12.0));
     }
     if custom > 0 {
-        rows.push(rules_note(k, format!("{custom} more rule{} in config.kdl match by text or urgency", if custom == 1 { "" } else { "s" })));
+        rows.push(rules_note(k, if custom == 1 { "1 more rule in config.kdl matches by text or urgency".into() } else { format!("{custom} more rules in config.kdl match by text or urgency") }));
     }
     section(k, "apps", None, rows)
 }
@@ -734,6 +735,7 @@ fn content(s: &Ui, k: &Kit) -> El {
                 .on_press(|s: &mut Ui| s.page = Page::Apps)
                 .build(k)
                 .key("back")
+                .self_start()
                 .ml(-8.0);
             ("app", std::iter::once(back).chain(app_page(s, k, app)).collect())
         }
