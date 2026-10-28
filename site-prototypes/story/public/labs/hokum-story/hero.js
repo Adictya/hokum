@@ -1,6 +1,32 @@
 ;(() => {
-  const STORY = window.STORY
-  const FINAL = STORY.find((s) => s.final)
+  // The trunk, then one of the branches: random per visit, a different one on each replay,
+  // or the one `?branch=` names (1–6 or its key).
+  const TRUNK = window.STORY_TRUNK
+  const BRANCHES = window.STORY_BRANCHES
+  const KEYS = Object.keys(BRANCHES)
+  let STORY, FINAL, START, branch
+  const seen = new Set()
+  function choose(avoid) {
+    const asked = new URLSearchParams(location.search).get("branch")
+    const named = asked && (KEYS[Number(asked) - 1] ?? (KEYS.includes(asked) ? asked : null))
+    if (named && !avoid) return named
+    // Replays go through the ones not seen yet, then start over (never the same twice in a row).
+    if (KEYS.every((k) => seen.has(k))) seen.clear()
+    let pool = KEYS.filter((k) => !seen.has(k) && k !== avoid)
+    if (!pool.length) pool = KEYS.filter((k) => k !== avoid)
+    return pool[Math.floor(Math.random() * pool.length)]
+  }
+  function load(key) {
+    branch = key
+    seen.add(key)
+    const base = TRUNK[TRUNK.length - 1].at
+    STORY = [...TRUNK, ...BRANCHES[key].cards.map((c) => ({ ...c, at: base + c.at }))].map((c) => ({ ...c }))
+    FINAL = STORY.find((s) => s.final)
+    STORY.forEach((s) => (s.ms = parse(s.time)))
+    START = STORY[0].ms
+    STORY.forEach((s, i) => (s.label = label(s, STORY[i - 1])))
+    document.body.dataset.branch = key
+  }
   const reduce = matchMedia("(prefers-reduced-motion: reduce)")
   const stack = document.getElementById("stack")
   const more = document.getElementById("more")
@@ -43,6 +69,17 @@
     "Lime Corp": ["#84cc16", `<circle cx="10" cy="10" r="5.4" fill="#ecfccb"/><circle cx="10" cy="10" r="4.4" fill="#a3e635"/>` + [0, 60, 120, 180, 240, 300].map((a) => `<path d="M10 10V5.8" stroke="#ecfccb" stroke-width=".9" transform="rotate(${a} 10 10)"/>`).join("")],
     Forbes: ["#111", `<path d="M7.4 5.6h5.4M8.8 5.6v8.8M8.8 9.8h3.2M7.4 14.4h3" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>`],
     "Lake Man 2032": ["#b91c1c", `<path d="M10 4.8l1.5 3.2 3.5.4-2.6 2.4.7 3.5L10 12.6l-3.1 1.7.7-3.5L5 8.4l3.5-.4z" fill="#fff"/>`],
+    "Tidy Pro": ["#0d9488", `<path d="M10 4.6l1.3 3.6 3.6 1.3-3.6 1.3L10 14.4l-1.3-3.6-3.6-1.3 3.6-1.3z" fill="#fff"/><circle cx="14.6" cy="5.6" r="1" fill="#fff"/>`],
+    WITSEC: ["#1e3a8a", `<path d="M10 4.4l4.6 1.8v3.6c0 3-2 4.9-4.6 5.8-2.6-.9-4.6-2.8-4.6-5.8V6.2z" fill="none" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/><path d="M10 7.6l.8 1.7 1.8.2-1.4 1.2.4 1.8-1.6-.9-1.6.9.4-1.8-1.4-1.2 1.8-.2z" fill="#fff"/>`],
+    Wallet: ["#111", `<rect x="5" y="6" width="10" height="3" rx="1" fill="#f59e0b"/><rect x="5" y="8" width="10" height="3" rx="1" fill="#22c55e"/><rect x="5" y="10" width="10" height="4.5" rx="1.2" fill="#3b82f6"/>`],
+    Podcasts: ["#9333ea", `<circle cx="10" cy="8.6" r="1.6" fill="#fff"/><path d="M7.2 11.4a4 4 0 1 1 5.6 0M5.6 13a6.2 6.2 0 1 1 8.8 0" fill="none" stroke="#fff" stroke-width="1.3" stroke-linecap="round"/><path d="M9.2 11h1.6l-.3 4h-1z" fill="#fff"/>`],
+    Netflix: ["#000", `<path d="M7.2 4.8h2l3.6 10.4h-2zM7.2 4.8h2v10.4h-2zM10.8 4.8h2v10.4h-2z" fill="#e50914"/>`],
+    Instagram: ["#d62976", `<rect x="5.4" y="5.4" width="9.2" height="9.2" rx="2.8" fill="none" stroke="#fff" stroke-width="1.4"/><circle cx="10" cy="10" r="2.2" fill="none" stroke="#fff" stroke-width="1.4"/><circle cx="12.9" cy="7.1" r=".7" fill="#fff"/>`],
+    TikTok: ["#111", `<path d="M11 5v7.2a2.2 2.2 0 1 1-2.2-2.2" fill="none" stroke="#25f4ee" stroke-width="1.6" stroke-linecap="round" transform="translate(-.5 .4)"/><path d="M11 5v7.2a2.2 2.2 0 1 1-2.2-2.2M11 5c.3 1.6 1.5 2.7 3 2.8" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>`],
+    YouTube: ["#ff0000", `<path d="M8.4 7v6l5-3z" fill="#fff"/>`],
+    Strava: ["#fc4c02", `<path d="M8.6 4.8l-3.4 6.6h2.1l1.3-2.6 1.3 2.6h2.1zM12.1 11.4l-1 2-1-2H8.6l2.5 4.8 2.5-4.8z" fill="#fff"/>`],
+    SpaceX: ["#000", `<path d="M4.5 13.5c4-5.6 7.6-8 11-8.6-3 1.6-6.4 4.6-9.4 8.8z" fill="#fff"/><path d="M12.6 12.2l2.9 2.3h-2.2z" fill="#fff"/>`],
+    "Wi-Fi": ["#2563eb", `<path d="M4.6 8.6a7.6 7.6 0 0 1 10.8 0M6.4 10.6a5 5 0 0 1 7.2 0M8.3 12.5a2.3 2.3 0 0 1 3.4 0" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/><circle cx="10" cy="14.4" r="1" fill="#fff"/>`],
     Weather: ["#3b82f6", `<circle cx="10" cy="10" r="3" fill="#ffd60a"/>` + [0, 45, 90, 135, 180, 225, 270, 315].map((a) => `<path d="M10 4.2v1.3" stroke="#ffd60a" stroke-width="1.3" stroke-linecap="round" transform="rotate(${a} 10 10)"/>`).join("")],
   }
   // Apps without an icon get their letter on a stable tint, as the daemon draws them.
@@ -65,8 +102,6 @@
     const [hh, mm] = t.split(":").map(Number)
     return new Date(y, m - 1, dd, hh, mm).getTime()
   }
-  STORY.forEach((s) => (s.ms = parse(s.time)))
-  const START = STORY[0].ms
   const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
   const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
   const hm = (d) => `${d.getHours() % 12 || 12}:${String(d.getMinutes()).padStart(2, "0")} ${d.getHours() < 12 ? "AM" : "PM"}`
@@ -78,11 +113,10 @@
     if (d.getFullYear() === 2026) return `${MONTHS[d.getMonth()]} ${d.getDate()}`
     return `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`
   }
-  STORY.forEach((s, i) => (s.label = label(s, STORY[i - 1])))
   let lastClock = ""
   function setClock(ms) {
     const d = new Date(ms)
-    const narrow = innerWidth < 520
+    const narrow = body.clientWidth < 520
     const text = narrow
       ? `${MONTHS[d.getMonth()]} ${d.getDate()} ${d.getFullYear()}  ${hm(d)}`
       : `${DAYS[d.getDay()]} ${MONTHS[d.getMonth()]} ${d.getDate()} ${d.getFullYear()}   ${hm(d)}`
@@ -242,6 +276,8 @@
   let next = 0
   let quieted = false
   let last = performance.now()
+  let onscreen = true
+  new IntersectionObserver(([e]) => (onscreen = e.isIntersecting)).observe(body)
   const spring = (c, p, v, target, dt) => {
     c[v] += (K * (target - c[p]) - C * c[v]) * dt
     c[p] += c[v] * dt
@@ -256,6 +292,7 @@
   function frame(now) {
     const dt = Math.min(0.1, (now - last) / 1000)
     last = now
+    if (!onscreen) return requestAnimationFrame(frame)
     t += dt
     if (!quieted && t >= FINAL.at - (window.QUIET ?? 3)) {
       quieted = true
@@ -308,6 +345,7 @@
   }
 
   function reset() {
+    load(choose(branch))
     for (const c of cards) c.el.remove()
     cards = []
     t = 0
@@ -340,6 +378,10 @@
   }
 
   window.hokumStoryTime = () => t
+  // The feature clips below the hero draw their cards with the same icons.
+  window.hokumIcon = icon
+  window.hokumStoryBranch = () => branch
+  load(choose())
   // Debug/preview: ?t=SECONDS starts the story at that point.
   const start = Number(new URLSearchParams(location.search).get("t"))
   measureGeo()
