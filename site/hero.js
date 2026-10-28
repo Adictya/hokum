@@ -309,15 +309,13 @@
   // lets the story make sound; nobody pressing anything declines on their behalf, quietly.
   let choosing = null
   let choiceCard = null
-  function decide(pick, button) {
+  function decide(pick, button, pressed = !!button) {
     if (!choosing) return
     clearTimeout(choosing.timer)
     choosing = null
     choiceCard?.el.classList.remove("choosing")
-    if (button) {
-      sound.unlock()
-      button.classList.add("picked")
-    }
+    if (button) button.classList.add("picked")
+    if (pressed) sound.unlock()
     choiceCard?.el.querySelectorAll(".actions button").forEach((b) => (b.disabled = true))
     if (pick === "pay") {
       // The payment fails; the trunk carries on with "You declined", same as pressing Decline.
@@ -325,7 +323,7 @@
       const fail = window.STORY_PAY.map((c) => ({ ...c, at: at + c.at }))
       STORY = [...STORY.slice(0, next), ...fail, ...STORY.slice(next)]
       stamp()
-    } else if (button) sound.play("declined")
+    } else if (pressed) sound.play("declined")
     // Pressed or not, the declined line arrives on cue.
   }
 
@@ -345,7 +343,7 @@
     if (s.choice && t - s.at < 1) {
       choiceCard = c
       c.el.classList.add("choosing")
-      choosing = { timer: setTimeout(() => decide(PAY ? "pay" : "decline", PAY ? c.el.querySelector(".actions button") : null), PAY ? 1500 : 7000) }
+      choosing = { timer: setTimeout(() => decide(PAY ? "pay" : "decline", PAY ? c.el.querySelector(".actions button") : null, false), PAY ? 1500 : 7000) }
     }
   }
 
