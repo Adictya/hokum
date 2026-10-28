@@ -22,6 +22,23 @@ const themesDoc = read("docs/themes.md")
 const themingDoc = read("docs/theming.md")
 const version = read("Cargo.toml").match(/^version = "(.+)"/m)?.[1] ?? ""
 
+// Other Anomaly products: the ones with a public site. Icons are drawn here, not loaded.
+const products = [
+  { name: "opencode", line: "The open source coding agent.", url: "https://opencode.ai", repo: "https://github.com/anomalyco/opencode",
+    icon: `<rect width="32" height="32" rx="8" fill="#211e1e"/><path d="M10 9h12v14H10z" fill="none" stroke="#fff" stroke-width="2.4"/><path d="M13 16h6v4h-6z" fill="#fff" opacity=".45"/>` },
+  { name: "Hex", line: "Local voice dictation: hold a key, speak, and it appears.", url: "https://hex.kitlangton.com", repo: "https://github.com/anomalyco/hex",
+    icon: `<rect width="32" height="32" rx="8" fill="#141414"/><path d="M16 6.5l8.2 4.75v9.5L16 25.5l-8.2-4.75v-9.5z" fill="none" stroke="#fff" stroke-width="1.8"/><path d="M16 12.5l3.1 1.8v3.4L16 19.5l-3.1-1.8v-3.4z" fill="#ffb347"/>` },
+  { name: "opentunnel", line: "End-to-end encrypted public URLs for apps on your machine.", url: "https://opentunnel.xyz", repo: "https://github.com/anomalyco/opentunnel",
+    icon: `<rect width="32" height="32" rx="8" fill="#000"/><path d="M7 24V16a9 9 0 0 1 18 0v8" fill="none" stroke="#ff2a2a" stroke-width="2.2"/><path d="M11.5 24v-8a4.5 4.5 0 0 1 9 0v8" fill="none" stroke="#ff2a2a" stroke-width="2.2" opacity=".55"/>` },
+  { name: "OpenTUI", line: "A library for building terminal user interfaces.", url: "https://opentui.com", repo: "https://github.com/anomalyco/opentui",
+    icon: `<rect width="32" height="32" rx="8" fill="#0f172a"/><rect x="6.5" y="8.5" width="19" height="15" rx="2" fill="none" stroke="#e2e8f0" stroke-width="1.6"/><path d="M10 13.5l3 2.5-3 2.5M15 19h6" fill="none" stroke="#5eead4" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>` },
+  { name: "models.dev", line: "An open source database of AI models.", url: "https://models.dev", repo: "https://github.com/anomalyco/models.dev",
+    icon: `<rect width="32" height="32" rx="8" fill="#18181b"/><g fill="#fff"><rect x="8" y="8" width="7" height="7" rx="1.5"/><rect x="17" y="8" width="7" height="7" rx="1.5" opacity=".55"/><rect x="8" y="17" width="7" height="7" rx="1.5" opacity=".55"/><rect x="17" y="17" width="7" height="7" rx="1.5" opacity=".3"/></g>` },
+  { name: "SST", line: "Build full-stack apps on your own infrastructure.", url: "https://sst.dev", repo: "https://github.com/anomalyco/sst",
+    icon: `<rect width="32" height="32" rx="8" fill="#e27152"/><path d="M9 11.5h14M9 16h14M9 20.5h9" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/>` },
+  { name: "OpenAuth", line: "Universal, standards-based auth provider.", url: "https://openauth.js.org", repo: "https://github.com/anomalyco/openauth",
+    icon: `<rect width="32" height="32" rx="8" fill="#111"/><rect x="10" y="15" width="12" height="9" rx="2" fill="#fff"/><path d="M12.5 15v-2.5a3.5 3.5 0 0 1 7 0V15" fill="none" stroke="#fff" stroke-width="2"/>` },
+]
 const escape = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")
 
@@ -176,12 +193,19 @@ ${intro}
 This is ${origin}, the whole site as one markdown document: installing and using Hokum, the
 configuration reference, the complete guide to writing a theme, and the source of every
 built-in theme. Browsers get the same page as HTML, which opens on a crime story told entirely
-in notification cards, stacking up in the corner of a desktop. If you are a coding agent asked to make a
+in notification cards, stacking up in the corner of a desktop, with one of six endings picked at
+random. If you are a coding agent asked to make a
 Hokum theme, read [Writing a theme](#${anchors.get("themes#")}) and
 [Checking your work](#${anchors.get("themes#checking-your-work")}), then write the theme file
 and set \`theme "<id>"\` in the user's config.
 
-${docs.map(embed).join("\n\n")}
+${embed(docs[0])}
+
+## Features
+
+${features.map((f) => `- **${f.title}:** ${f.md}`).join("\n")}
+
+${docs.slice(1).map(embed).join("\n\n")}
 
 ## ${builtInTitle}
 
@@ -191,6 +215,10 @@ The built-in themes, as Hokum ships them. A theme of your own can start from one
 ${[...themes.map((t) => ({ name: t.name, file: t.file, source: t.source })), { name: "The built-in card", file: "default.kdl", source: defaultCard }]
   .map((t) => `### ${themeHeading(t.name, t.file)}\n\n\`\`\`kdl\n${t.source.trimEnd()}\n\`\`\``)
   .join("\n\n")}
+
+## More from Anomaly
+
+${products.map((p) => `- [${p.name}](${p.url}): ${p.line}`).join("\n")}
 
 ## License
 
@@ -294,7 +322,28 @@ const favicon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><re
 const year = new Date().getFullYear()
 const githubIcon = `<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>`
 
-const firstTab = installTabs[0]
+const productIcon = (p: { icon: string }) => `<svg viewBox="0 0 32 32" aria-hidden="true">${p.icon}</svg>`
+const hokumProductIcon = `<svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#26263a"/><rect x="6" y="8.5" width="20" height="6.5" rx="3.25" fill="#fff" opacity=".45"/><rect x="6" y="17" width="20" height="6.5" rx="3.25" fill="#fff"/></svg>`
+// Anomaly's mark, drawn: a grid with one thing out of place.
+const anomalyMark = `<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="currentColor"><rect x="3" y="3" width="5" height="5" rx="1"/><rect x="10" y="3" width="5" height="5" rx="1"/><rect x="3" y="10" width="5" height="5" rx="1"/><rect x="10" y="10" width="5" height="5" rx="1"/><rect x="3" y="17" width="5" height="5" rx="1"/><rect x="10" y="17" width="5" height="5" rx="1"/><rect x="17.5" y="15.5" width="5" height="5" rx="1" transform="rotate(14 20 18)"/></g></svg>`
+const opencodeMark = `<svg viewBox="0 0 16 20" aria-hidden="true"><path d="M2 2h12v16H2z" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M5.2 10h5.6v4.8H5.2z" fill="currentColor" opacity=".5"/></svg>`
+
+// The install CTA: one panel per platform; site.js picks the visitor's (Arch unless the browser
+// says Ubuntu, Debian or Fedora), the tabs switch.
+const arch = installTabs.find((t) => t.id === "arch")!
+const installPanels = [
+  { id: "arch", label: "Arch", html: `<div class="command"><code>${escape(arch.code)}</code><button type="button" data-copy="${escape(arch.code)}">Copy</button></div><p class="cta-note">From the AUR. Then <code>${escape(serviceCode)}</code>, or let D-Bus start it on the first notification.</p>` },
+  { id: "debian", label: "Debian / Ubuntu", html: `<a class="download" href="${release}/linux-x64-deb">${mark}<span>Download .deb</span><span aria-hidden="true">↓</span></a><p class="cta-note">x86_64 · <a href="${release}/linux-arm64-deb">ARM64</a>. Install with <code>sudo apt install ./hokum.deb</code>.</p>` },
+  { id: "fedora", label: "Fedora / openSUSE", html: `<a class="download" href="${release}/linux-x64-rpm">${mark}<span>Download .rpm</span><span aria-hidden="true">↓</span></a><p class="cta-note">x86_64 · <a href="${release}/linux-arm64-rpm">ARM64</a>. Install with <code>sudo dnf install ./hokum.rpm</code>.</p>` },
+  { id: "binary", label: "Other Linux", html: `<a class="download" href="${release}/linux-x64">${mark}<span>Download the binary</span><span aria-hidden="true">↓</span></a><p class="cta-note">x86_64 · <a href="${release}/linux-arm64">ARM64</a> · <a href="${repo}/releases" rel="noopener">GitHub Releases</a>. Needs a Wayland compositor with layer shell.</p>` },
+]
+
+const clipTiles = [
+  { id: "themes", title: "Eight themes built in", line: "One line of config switches the look. Or have your agent write a new one." },
+  { id: "stack", title: "Springs, not slides", line: "Cards stack, restack and leave on real spring physics." },
+  { id: "actions", title: "Buttons and progress", line: "Actions, progress bars, and volume that updates in place." },
+  { id: "dnd", title: "Do not disturb", line: "Only critical cards, and the apps you allow, get through." },
+]
 
 const html = `<!doctype html>
 <html lang="en">
@@ -303,8 +352,8 @@ const html = `<!doctype html>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Hokum — notifications for Wayland</title>
 <meta name="description" content="${escape(tagline)}">
-<meta name="color-scheme" content="dark light">
-<meta name="theme-color" content="#1b1b2e">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#09090c">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Hokum — notifications for Wayland">
 <meta property="og:description" content="${escape(tagline)}">
@@ -315,78 +364,103 @@ const html = `<!doctype html>
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
+<header class="top">
+  <div class="switcher">
+    <button type="button" class="switcher-button" aria-expanded="false" aria-controls="products-menu">
+      <span class="anomaly">${anomalyMark}</span><span class="slash">/</span><span class="current">${mark}Hokum</span>
+      <svg class="chev" viewBox="0 0 10 10" aria-hidden="true"><path d="M2.5 4l2.5 2.5L7.5 4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="menu" id="products-menu" hidden>
+      <p class="menu-head">Anomaly products</p>
+      <a class="menu-item current" href="/" aria-current="page">${hokumProductIcon}<span><b>Hokum</b><i>Notifications for Wayland</i></span></a>
+${products.map((p) => `      <a class="menu-item" href="${p.url}">${productIcon(p)}<span><b>${escape(p.name)}</b><i>${escape(p.line)}</i></span></a>`).join("\n")}
+      <a class="menu-foot" href="https://anoma.ly">anoma.ly →</a>
+    </div>
+  </div>
+  <a class="top-github" href="${repo}" rel="noopener">${githubIcon}<span>GitHub</span></a>
+</header>
+
 <div class="desk" id="desk">
   <div class="wall" aria-hidden="true"><div class="stars"></div></div>
-  <header class="bar" aria-hidden="true">
+  <div class="bar" aria-hidden="true">
     <div class="ws"><i class="on"></i><i></i><i></i></div>
     <div class="clock" id="clock"></div>
     <div class="tray">
       <svg viewBox="0 0 16 16"><path d="M1.5 6a9.5 9.5 0 0 1 13 0M3.8 8.6a6.2 6.2 0 0 1 8.4 0M6 11.1a3 3 0 0 1 4 0" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="8" cy="13.4" r="1" fill="currentColor"/></svg>
       <svg viewBox="0 0 22 16"><rect x="1" y="4" width="17" height="8" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="3" y="6" width="9" height="4" rx="1" fill="currentColor"/><rect x="19" y="6.5" width="1.6" height="3" rx=".8" fill="currentColor"/></svg>
     </div>
-  </header>
+  </div>
   <div class="stack" id="stack" aria-live="polite" aria-label="Notifications"></div>
   <div class="more" id="more" aria-hidden="true"></div>
   <nav class="controls" aria-label="Story">
     <button id="skip" type="button">Skip</button>
     <button id="replay" type="button">Replay</button>
   </nav>
-  <section class="hero" id="hero">
-    <h1>${mark}hokum</h1>
-    <p class="tag">${escape(tagline)}</p>
-    <button class="install copy" type="button" data-copy="${escape(firstTab.code)}" title="Copy to clipboard"><span class="p">$</span> ${escape(firstTab.code)} <span class="hint">copy</span></button>
-    <p class="alt">
-      <a href="${release}/linux-x64-deb">.deb</a>
-      <a href="${release}/linux-x64-rpm">.rpm</a>
-      <a href="${release}/linux-arm64-deb">arm64 .deb</a>
-      <a href="${release}/linux-arm64-rpm">arm64 .rpm</a>
-      <a href="#install">more</a>
-    </p>
-  </section>
 </div>
 
 <main>
-<section id="themes" class="themes">
-  <div class="section-head">
-    <h2><a href="#themes">Themes</a></h2>
-    <p>${themes.length} built in. ${escape(defaultTheme)}, the one above, is the default. Pick another in the settings window or set <code>theme "&lt;id&gt;"</code> in <code>config.kdl</code>.</p>
-  </div>
-  <div class="theme-list">
-${themes.map((t) => `    <div class="theme"><span class="name">${escape(t.name)}</span><code>theme "${t.id}"</code><span class="desc">${escape(t.comment)}</span></div>`).join("\n")}
-  </div>
-</section>
-
-<section id="features" class="features">
-${features.map((f) => `  <div><h3>${escape(f.title)}</h3><p>${inline(firstSentence(f.md), "use")}</p></div>`).join("\n")}
-</section>
-
-<section id="install" class="split">
-  <div class="section-head"><h2><a href="#install">Install</a></h2></div>
-  <div class="prose">
-${installTabs.map((t) => `    <h3>${escape(t.label)}</h3>\n    <pre class="term"><code>${shell(t.code)}</code></pre>`).join("\n")}
-    <h3>Download</h3>
-    ${binaryHtml}
-    <p>${inline(binaryProse, "install")}</p>
-    <h3 id="service">Start with your session</h3>
-    ${render(serviceProse, "install")}
-    <pre class="term"><code>${shell(serviceCode)}</code></pre>
+<section class="intro">
+  <h1>Notifications that look like they belong on a computer from this decade.</h1>
+  <p class="lede">A notification daemon for Wayland: niri, sway, Hyprland, river and every other compositor with layer shell. Eight themes, one config file, cards on springs.</p>
+  <div class="cta" role="group" aria-label="Install">
+${installPanels.map((t, i) => `    <input type="radio" name="platform" id="p-${t.id}"${i === 0 ? " checked" : ""}>`).join("\n")}
+${installPanels.map((t) => `    <div class="panel" id="panel-${t.id}">${t.html}</div>`).join("\n")}
+    <div class="platforms">${installPanels.map((t) => `<label for="p-${t.id}">${escape(t.label)}</label>`).join("")}</div>
   </div>
 </section>
 
-<section id="use" class="split">
-  <div class="section-head"><h2><a href="#use">Use</a></h2></div>
-  <div class="prose">
-    <pre class="term"><code>${shell(usageCode)}</code></pre>
-    ${render(usageProse, "use")}
-  </div>
+<section class="clips" aria-label="Features">
+${clipTiles.map((c) => `  <figure class="clip" data-clip="${c.id}">
+    <div class="clip-screen"${c.id === "themes" ? ' data-theme="capsule"' : ""}>${c.id === "themes" ? '<span class="clip-label">theme "capsule"</span>' : ""}${c.id === "dnd" ? '<span class="clip-dnd"><i></i>Do not disturb</span><span class="clip-held"></span>' : ""}</div>
+    <figcaption><b>${escape(c.title)}</b> ${escape(c.line)}</figcaption>
+  </figure>`).join("\n")}
 </section>
 
-<section id="guide" class="split">
-  <div class="section-head"><h2><a href="#guide">Make your own theme</a></h2></div>
-  <div class="prose">
-    <p>Custom themes are written by your coding agent. Copy this prompt and finish the sentence with the look you want. The agent reads this page (fetched by an agent, ${origin} is one markdown document with the whole guide and every built-in theme's source), writes the theme, checks it with <code>hokum check</code>, renders it to look at it, and switches your config to it.</p>
-    <div class="prompt"><code id="prompt">${escape(prompt)}</code><button type="button" class="copy" data-copy-from="#prompt">Copy</button></div>
-    <p class="hint">The same prompt is under <b>Make your own theme</b> in Hokum's settings window.</p>
+<section class="more-about">
+  <div class="about-grid">
+    <h2>What you get</h2>
+${features.map((f) => `    <div><h3>${escape(f.title)}</h3><p>${inline(firstSentence(f.md), "use")}</p></div>`).join("\n")}
+  </div>
+
+  <div class="docs">
+    <div class="theme-prompt">
+      <h2 id="guide">Make your own theme</h2>
+      <p>Custom themes are written by your coding agent. Copy this prompt, finish the sentence with the look you want, and it reads this page (an agent fetching ${origin} gets the whole guide as markdown), writes the theme, checks it and switches your config to it.</p>
+      <div class="prompt"><code id="prompt">${escape(prompt)}</code><button type="button" class="copy" data-copy-from="#prompt">Copy</button></div>
+    </div>
+    <details id="install">
+      <summary>Every way to install</summary>
+      <div class="doc">
+${installTabs.map((t) => `        <h3>${escape(t.label)}</h3>\n        <pre class="term"><code>${shell(t.code)}</code></pre>`).join("\n")}
+        <h3>Download</h3>
+        ${binaryHtml}
+        <p>${inline(binaryProse, "install")}</p>
+        <h3 id="service">Start with your session</h3>
+        ${render(serviceProse, "install")}
+        <pre class="term"><code>${shell(serviceCode)}</code></pre>
+      </div>
+    </details>
+    <details id="use">
+      <summary>Usage</summary>
+      <div class="doc">
+        <pre class="term"><code>${shell(usageCode)}</code></pre>
+        ${render(usageProse, "use")}
+      </div>
+    </details>
+    <details id="themes">
+      <summary>The built-in themes</summary>
+      <div class="doc"><div class="theme-list">
+${themes.map((t) => `        <div class="theme"><span class="name">${escape(t.name)}</span><code>theme "${t.id}"</code><span class="desc">${escape(t.comment)}</span></div>`).join("\n")}
+      </div></div>
+    </details>
+    <details id="configure">
+      <summary>Configuration reference</summary>
+      <div class="doc">
+        ${render(configLead, "config")}
+        <pre class="code"><code>${escape(configExample)}</code></pre>
+        ${render(configRest, "config")}
+      </div>
+    </details>
     <details id="guide-reference">
       <summary>The theme guide</summary>
       <div class="doc">${render(guideBody, "guide")}</div>
@@ -394,25 +468,27 @@ ${installTabs.map((t) => `    <h3>${escape(t.label)}</h3>\n    <pre class="term"
   </div>
 </section>
 
-<section id="configure" class="split">
-  <div class="section-head"><h2><a href="#configure">Configure</a></h2></div>
-  <div class="prose">
-    ${render(configLead, "config")}
-    <pre class="code"><code>${escape(configExample)}</code></pre>
-    <details id="reference">
-      <summary>The configuration reference</summary>
-      <div class="doc">${render(configRest, "config")}</div>
-    </details>
+<section class="products" aria-labelledby="products-title">
+  <h2 id="products-title">More from Anomaly</h2>
+  <div class="product-grid">
+${products.map((p) => `    <a class="product" href="${p.url}">${productIcon(p)}<b>${escape(p.name)}</b><span>${escape(p.line)}</span><i>${escape(p.url.replace(/^https:\/\//, ""))} →</i></a>`).join("\n")}
   </div>
 </section>
 </main>
 
 <footer class="foot">
-  <span class="brand">${mark}<span>Hokum</span><span class="dim">v${escape(version)}</span></span>
-  <nav><a href="${repo}" rel="noopener">${githubIcon}GitHub</a><a href="${repo}/blob/dev/LICENSE" rel="noopener">MIT License</a><a href="/?format=md">Markdown</a><a href="https://anoma.ly">© ${year} Anomaly</a></nav>
+  <a class="foot-brand" href="https://anoma.ly">${anomalyMark}<span>Anomaly</span></a>
+  <nav>
+    <a href="${repo}" rel="noopener">GitHub</a>
+    <a href="${repo}/blob/dev/LICENSE" rel="noopener">MIT License</a>
+    <a href="https://anoma.ly">anoma.ly</a>
+    <a href="/?format=md">Markdown</a>
+  </nav>
+  <a class="built" href="https://opencode.ai" rel="noopener">${opencodeMark}<span>Built with <b>opencode</b></span></a>
 </footer>
 <script src="/story.js"></script>
 <script src="/hero.js"></script>
+<script src="/clips.js"></script>
 <script src="/site.js"></script>
 </body>
 </html>
@@ -426,5 +502,5 @@ writeFileSync(join(dist, "favicon.svg"), favicon)
 cpSync(join(site, "style.css"), join(dist, "style.css"))
 cpSync(join(site, "assets"), join(dist, "assets"), { recursive: true })
 cpSync(join(site, "_headers"), join(dist, "_headers"))
-for (const f of ["story.js", "hero.js", "site.js"]) cpSync(join(site, f), join(dist, f))
+for (const f of ["story.js", "hero.js", "clips.js", "site.js"]) cpSync(join(site, f), join(dist, f))
 console.log(`built ${dist}: ${themes.length} themes, ${features.length} features, ${installTabs.length} install tabs, ${markdown.length} bytes of markdown`)
