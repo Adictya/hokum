@@ -1,5 +1,5 @@
 // Builds hokum.app into site/dist from the repository: README.md, docs/theming.md,
-// docs/themes.md, themes/*.kdl and the rendered screenshots in site/screenshots.
+// docs/themes.md and themes/*.kdl. The hero is story.js (the script) and hero.js (the cards).
 //
 // The site is one URL. dist/index.html is the page for browsers; dist/page.md is the same page
 // as one self-contained markdown document, which worker.ts serves at / to agents.
@@ -175,7 +175,8 @@ ${intro}
 
 This is ${origin}, the whole site as one markdown document: installing and using Hokum, the
 configuration reference, the complete guide to writing a theme, and the source of every
-built-in theme. Browsers get the same page as HTML. If you are a coding agent asked to make a
+built-in theme. Browsers get the same page as HTML, which opens on a crime story told entirely
+in notification cards, stacking up in the corner of a desktop. If you are a coding agent asked to make a
 Hokum theme, read [Writing a theme](#${anchors.get("themes#")}) and
 [Checking your work](#${anchors.get("themes#checking-your-work")}), then write the theme file
 and set \`theme "<id>"\` in the user's config.
@@ -243,199 +244,176 @@ function renderer(prefix: string) {
 const render = (md: string, prefix: string) => renderer(prefix).parse(md) as string
 const inline = (md: string, prefix: string) => renderer(prefix).parseInline(md) as string
 
-const shots = join(site, "screenshots")
-const shot = (id: string, mode: string) => existsSync(join(shots, `${id}-${mode}.webp`))
-// WebP headers carry the canvas size; read it so images reserve their space.
-function size(id: string) {
-  const b = readFileSync(join(shots, `${id}-dark.webp`))
-  const fourcc = b.toString("ascii", 12, 16)
-  if (fourcc === "VP8X") return [1 + b.readUIntLE(24, 3), 1 + b.readUIntLE(27, 3)]
-  if (fourcc === "VP8L") {
-    const bits = b.readUInt32LE(21)
-    return [(bits & 0x3fff) + 1, ((bits >> 14) & 0x3fff) + 1]
-  }
-  return [b.readUInt16LE(26) & 0x3fff, b.readUInt16LE(28) & 0x3fff]
-}
-function picture(id: string, alt: string) {
-  if (!shot(id, "dark")) return `<div class="missing">${escape(alt)}</div>`
-  const [w, h] = size(id)
-  const light = shot(id, "light")
-    ? `<source srcset="/screenshots/${id}-light.webp" media="(prefers-color-scheme: light)">`
-    : ""
-  return `<picture>${light}<img src="/screenshots/${id}-dark.webp" width="${w}" height="${h}" alt="${escape(alt)}" decoding="async"></picture>`
-}
-
 // Install: one tab per way, as the README gives them. Each "On …:" / "From …:" paragraph and the
-// code under it is a tab; the rest is prose under the tabs.
-const installTabs: { label: string; note: string; code: string }[] = []
+// code under it is a tab.
+const installTabs: { id: string; label: string; code: string }[] = []
 for (const m of installMd.slice(0, installMd.indexOf("Hokum starts through D-Bus") >>> 0).matchAll(/^(.+?):\n\n```sh\n([\s\S]+?)```/gm)) {
   const lead = m[1].replace(/\s*\n\s*/g, " ")
-  const label = /AUR/.test(lead)
-    ? "arch"
+  const [id, label] = /AUR/.test(lead)
+    ? ["arch", "Arch"]
     : /Debian/.test(lead)
-      ? "debian"
+      ? ["debian", "Debian / Ubuntu"]
       : /Fedora/.test(lead)
-        ? "fedora"
-        : lead.toLowerCase().split(" ").pop()!
-  installTabs.push({ label, note: lead, code: m[2].trimEnd() })
+        ? ["fedora", "Fedora / openSUSE"]
+        : [slug(lead), lead]
+  installTabs.push({ id, label, code: m[2].trimEnd() })
 }
-const serviceAt = installMd.indexOf("Hokum starts through D-Bus")
-const serviceMd = serviceAt < 0 ? "" : installMd.slice(serviceAt).trim()
+const serviceMd = installMd.slice(installMd.indexOf("Hokum starts through D-Bus") >>> 0)
 const serviceCode = serviceMd.match(/```sh\n([\s\S]+?)```/)?.[1].trim() ?? ""
 const serviceProse = serviceMd.replace(/```sh\n[\s\S]+?```/, "").trim()
-const binaryProse = installMd.match(/^Or download[\s\S]+?(?=\n\n)/m)?.[0] ?? ""
+const binaryProse = installMd.match(/^Or download[\s\S]+?(?=\n\n)/m)?.[0].replace(/\s*\n\s*/g, " ") ?? ""
 
 const shell = (code: string) =>
   code
     .split("\n")
     .map((l) => {
       const [cmd, comment] = l.split(/(?<=\S)\s+(?=# )/)
-      return `<span class="cmd">${escape(cmd)}</span>${comment ? ` <span class="out">${escape(comment)}</span>` : ""}`
+      return `<span class="cmd">${escape(cmd)}</span>${comment ? `  <span class="out">${escape(comment)}</span>` : ""}`
     })
     .join("\n")
 
-const tabs = [
-  ...installTabs.map((t) => ({ ...t, html: `<pre class="term"><code>${shell(t.code)}</code></pre><p class="note">${inline(t.note, "install")}</p>` })),
-  {
-    label: "binary",
-    html: `<div class="table"><table><tbody>${[
-      ["x64", "x86_64"],
-      ["arm64", "aarch64"],
-    ]
-      .map(
-        ([arch, label]) =>
-          `<tr><th>${label}</th><td><a href="${release}/linux-${arch}">executable</a></td><td><a href="${release}/linux-${arch}-deb">.deb</a></td><td><a href="${release}/linux-${arch}-rpm">.rpm</a></td></tr>`,
-      )
-      .join("")}</tbody></table></div><p class="note">${inline(binaryProse.replace(/\s*\n\s*/g, " "), "install")}</p>`,
-  },
+const binaryHtml = `<div class="downloads">${[
+  ["x64", "x86_64"],
+  ["arm64", "ARM64"],
 ]
+  .map(
+    ([arch, label]) =>
+      `<div><span>${label}</span><a href="${release}/linux-${arch}">executable</a><a href="${release}/linux-${arch}-deb">.deb</a><a href="${release}/linux-${arch}-rpm">.rpm</a></div>`,
+  )
+  .join("")}</div>`
 
 // The theme guide's own intro paragraph is replaced by the section's lead.
 const guideBody = themesDoc.replace(/^# .+\n\n[\s\S]+?\n\n(?=## )/, "")
-// The configuration reference: the first example leads the section, the rest folds away.
 const configExample = themingDoc.match(/```kdl\n([\s\S]+?)```/)?.[1].trimEnd() ?? ""
 const configLead = themingDoc.match(/^# .+\n\n([\s\S]+?)\n\n```/)?.[1] ?? ""
 const configRest = themingDoc.replace(/^# .+\n\n[\s\S]+?```kdl\n[\s\S]+?```\n\n/, "")
+const firstSentence = (md: string) => md.match(/^[\s\S]+?[.!?](?=\s|$)/)?.[0] ?? md
 
-const icon = `<svg viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="6" width="26" height="9" rx="4.5" fill="currentColor" opacity=".4"/><rect x="3" y="17" width="26" height="9" rx="4.5" fill="currentColor"/></svg>`
-const favicon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#000"/><rect x="5" y="7" width="22" height="8" rx="4" fill="#fff" opacity=".45"/><rect x="5" y="17" width="22" height="8" rx="4" fill="#fff"/></svg>`
+const mark = `<svg viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="6" width="26" height="9" rx="4.5" fill="currentColor" opacity=".45"/><rect x="3" y="17" width="26" height="9" rx="4.5" fill="currentColor"/></svg>`
+const favicon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#111114"/><rect x="5" y="7" width="22" height="8" rx="4" fill="#fff" opacity=".45"/><rect x="5" y="17" width="22" height="8" rx="4" fill="#fff"/></svg>`
 const year = new Date().getFullYear()
+const githubIcon = `<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>`
+
+const firstTab = installTabs[0]
 
 const html = `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>hokum — notifications for wayland</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hokum — notifications for Wayland</title>
 <meta name="description" content="${escape(tagline)}">
 <meta name="color-scheme" content="dark light">
-<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
-<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1b1b2e">
 <meta property="og:type" content="website">
-<meta property="og:title" content="hokum — notifications for wayland">
+<meta property="og:title" content="Hokum — notifications for Wayland">
 <meta property="og:description" content="${escape(tagline)}">
 <meta property="og:url" content="${origin}/">
-<meta property="og:image" content="${origin}/screenshots/${themes[0].id}-dark.webp">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="alternate" type="text/markdown" href="/?format=md" title="This page as markdown, for agents">
 <link rel="preload" href="/assets/inter.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="/assets/ibm-plex-mono-400.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-<main>
-  <header class="masthead">
-    <h1 class="wordmark">${icon}<span>hokum</span></h1>
-    <p class="caption"><b>notifications<i></i>for wayland</b><b>v${escape(version)}<i></i>mit</b></p>
-  </header>
-
-  <p class="tagline">${escape(tagline.toLowerCase().replace(/\.$/, ""))}</p>
-  <div class="intro">${render(intro, "intro")}</div>
-
-  <div class="install" role="group" aria-label="Install">
-${tabs.map((t, i) => `    <input type="radio" name="install" id="tab-${t.label}"${i === 0 ? " checked" : ""}>`).join("\n")}
-    <div class="tabs">${tabs.map((t) => `<label for="tab-${t.label}">${t.label}</label>`).join("")}<a href="${repo}/releases" rel="noopener">github</a></div>
-${tabs.map((t) => `    <div class="panel" id="panel-${t.label}">${t.html}</div>`).join("\n")}
-  </div>
-
-  <section id="themes" class="themes">
-    <h2><a href="#themes">themes</a></h2>
-    <p class="lead">${themes.length} built in, rendered here by Hokum itself. ${escape(defaultTheme)} is the default; pick one in the settings window or set <code>theme "&lt;id&gt;"</code> in <code>config.kdl</code>. They follow light and dark, as your desktop does.</p>
-    <div class="gallery">
-${themes
-  .map(
-    (t) => `      <figure class="theme" id="theme-${t.id}">
-        <div class="desktop">${picture(t.id, `The ${t.name} theme: a Slack message, a critical battery warning, a volume bar and a download`)}</div>
-        <figcaption><span class="name">${t.id}</span>${t.name === defaultTheme ? '<span class="dim">default</span>' : ""}<p>${escape(t.comment)}</p></figcaption>
-      </figure>`,
-  )
-  .join("\n")}
+<div class="desk" id="desk">
+  <div class="wall" aria-hidden="true"><div class="stars"></div></div>
+  <header class="bar" aria-hidden="true">
+    <div class="ws"><i class="on"></i><i></i><i></i></div>
+    <div class="clock" id="clock"></div>
+    <div class="tray">
+      <svg viewBox="0 0 16 16"><path d="M1.5 6a9.5 9.5 0 0 1 13 0M3.8 8.6a6.2 6.2 0 0 1 8.4 0M6 11.1a3 3 0 0 1 4 0" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="8" cy="13.4" r="1" fill="currentColor"/></svg>
+      <svg viewBox="0 0 22 16"><rect x="1" y="4" width="17" height="8" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="3" y="6" width="9" height="4" rx="1" fill="currentColor"/><rect x="19" y="6.5" width="1.6" height="3" rx=".8" fill="currentColor"/></svg>
     </div>
+  </header>
+  <div class="stack" id="stack" aria-live="polite" aria-label="Notifications"></div>
+  <div class="more" id="more" aria-hidden="true"></div>
+  <nav class="controls" aria-label="Story">
+    <button id="skip" type="button">Skip</button>
+    <button id="replay" type="button">Replay</button>
+  </nav>
+  <section class="hero" id="hero">
+    <h1>${mark}hokum</h1>
+    <p class="tag">${escape(tagline)}</p>
+    <button class="install copy" type="button" data-copy="${escape(firstTab.code)}" title="Copy to clipboard"><span class="p">$</span> ${escape(firstTab.code)} <span class="hint">copy</span></button>
+    <p class="alt">
+      <a href="${release}/linux-x64-deb">.deb</a>
+      <a href="${release}/linux-x64-rpm">.rpm</a>
+      <a href="${release}/linux-arm64-deb">arm64 .deb</a>
+      <a href="${release}/linux-arm64-rpm">arm64 .rpm</a>
+      <a href="#install">more</a>
+    </p>
   </section>
+</div>
 
-  <section id="use">
-    <h2><a href="#use">use</a></h2>
+<main>
+<section id="themes" class="themes">
+  <div class="section-head">
+    <h2><a href="#themes">Themes</a></h2>
+    <p>${themes.length} built in. ${escape(defaultTheme)}, the one above, is the default. Pick another in the settings window or set <code>theme "&lt;id&gt;"</code> in <code>config.kdl</code>.</p>
+  </div>
+  <div class="theme-list">
+${themes.map((t) => `    <div class="theme"><span class="name">${escape(t.name)}</span><code>theme "${t.id}"</code><span class="desc">${escape(t.comment)}</span></div>`).join("\n")}
+  </div>
+</section>
+
+<section id="features" class="features">
+${features.map((f) => `  <div><h3>${escape(f.title)}</h3><p>${inline(firstSentence(f.md), "use")}</p></div>`).join("\n")}
+</section>
+
+<section id="install" class="split">
+  <div class="section-head"><h2><a href="#install">Install</a></h2></div>
+  <div class="prose">
+${installTabs.map((t) => `    <h3>${escape(t.label)}</h3>\n    <pre class="term"><code>${shell(t.code)}</code></pre>`).join("\n")}
+    <h3>Download</h3>
+    ${binaryHtml}
+    <p>${inline(binaryProse, "install")}</p>
+    <h3 id="service">Start with your session</h3>
+    ${render(serviceProse, "install")}
+    <pre class="term"><code>${shell(serviceCode)}</code></pre>
+  </div>
+</section>
+
+<section id="use" class="split">
+  <div class="section-head"><h2><a href="#use">Use</a></h2></div>
+  <div class="prose">
     <pre class="term"><code>${shell(usageCode)}</code></pre>
-    <div class="prose">${render(usageProse, "use")}${render(serviceProse, "install")}</div>
-    <pre class="term after"><code>${shell(serviceCode)}</code></pre>
-    <dl class="features">
-${features.map((f) => `      <div><dt>${escape(f.title.toLowerCase())}</dt><dd>${inline(f.md, "use")}</dd></div>`).join("\n")}
-    </dl>
-  </section>
+    ${render(usageProse, "use")}
+  </div>
+</section>
 
-  <section id="guide">
-    <h2><a href="#guide">make your own theme</a></h2>
-    <ol class="steps">
-      <li><p>Custom themes are written by your coding agent. Copy the prompt and finish the sentence with the look you want.</p></li>
-      <li><p>The agent reads this page (fetched by an agent, ${origin} is one markdown document with the whole guide and every built-in theme's source).</p></li>
-      <li><p>It writes <code>~/.config/hokum/themes/&lt;id&gt;.kdl</code>, checks it with <code>hokum check</code>, renders it headlessly to look at it, and switches your config to it. Hokum redraws as the file changes.</p></li>
-    </ol>
-    <div class="prompt"><code id="prompt">${escape(prompt)}</code><button type="button" class="copy" data-copy="#prompt">copy</button></div>
+<section id="guide" class="split">
+  <div class="section-head"><h2><a href="#guide">Make your own theme</a></h2></div>
+  <div class="prose">
+    <p>Custom themes are written by your coding agent. Copy this prompt and finish the sentence with the look you want. The agent reads this page (fetched by an agent, ${origin} is one markdown document with the whole guide and every built-in theme's source), writes the theme, checks it with <code>hokum check</code>, renders it to look at it, and switches your config to it.</p>
+    <div class="prompt"><code id="prompt">${escape(prompt)}</code><button type="button" class="copy" data-copy-from="#prompt">Copy</button></div>
     <p class="hint">The same prompt is under <b>Make your own theme</b> in Hokum's settings window.</p>
     <details id="guide-reference">
-      <summary>the theme guide</summary>
-      <div class="prose doc">${render(guideBody, "guide")}</div>
+      <summary>The theme guide</summary>
+      <div class="doc">${render(guideBody, "guide")}</div>
     </details>
-  </section>
+  </div>
+</section>
 
-  <section id="configure">
-    <h2><a href="#configure">configure</a></h2>
-    <div class="prose">${render(configLead, "config")}</div>
-    <pre class="code" data-lang="kdl"><code>${escape(configExample)}</code></pre>
+<section id="configure" class="split">
+  <div class="section-head"><h2><a href="#configure">Configure</a></h2></div>
+  <div class="prose">
+    ${render(configLead, "config")}
+    <pre class="code"><code>${escape(configExample)}</code></pre>
     <details id="reference">
-      <summary>the configuration reference</summary>
-      <div class="prose doc">${render(configRest, "config")}</div>
+      <summary>The configuration reference</summary>
+      <div class="doc">${render(configRest, "config")}</div>
     </details>
-  </section>
+  </div>
+</section>
 </main>
 
 <footer class="foot">
-  <p><a href="${repo}" rel="noopener">github</a><a href="${repo}/blob/dev/LICENSE" rel="noopener">mit license</a><a href="/?format=md">markdown</a></p>
-  <p>©${year} <a href="https://anoma.ly">anomaly</a></p>
+  <span class="brand">${mark}<span>Hokum</span><span class="dim">v${escape(version)}</span></span>
+  <nav><a href="${repo}" rel="noopener">${githubIcon}GitHub</a><a href="${repo}/blob/dev/LICENSE" rel="noopener">MIT License</a><a href="/?format=md">Markdown</a><a href="https://anoma.ly">© ${year} Anomaly</a></nav>
 </footer>
-<script>
-for (const pre of document.querySelectorAll("pre.code, pre.term")) {
-  const b = document.createElement("button")
-  b.type = "button"; b.className = "copy"; b.textContent = "copy"
-  const text = [...pre.querySelectorAll(".cmd")].map((c) => c.textContent).join("\\n") || pre.querySelector("code").textContent
-  b.addEventListener("click", () => copy(b, text.trimEnd()))
-  pre.append(b)
-}
-for (const b of document.querySelectorAll("button[data-copy]"))
-  b.addEventListener("click", () => copy(b, document.querySelector(b.dataset.copy).textContent))
-function copy(b, text) {
-  navigator.clipboard.writeText(text).then(() => {
-    b.textContent = "copied"; setTimeout(() => (b.textContent = "copy"), 1500)
-  })
-}
-function reveal() {
-  const el = location.hash && document.getElementById(decodeURIComponent(location.hash.slice(1)))
-  const details = el && el.closest("details")
-  if (details && !details.open) { details.open = true; el.scrollIntoView() }
-}
-addEventListener("hashchange", reveal)
-reveal()
-</script>
+<script src="/story.js"></script>
+<script src="/hero.js"></script>
+<script src="/site.js"></script>
 </body>
 </html>
 `
@@ -447,6 +425,6 @@ writeFileSync(join(dist, "page.md"), markdown)
 writeFileSync(join(dist, "favicon.svg"), favicon)
 cpSync(join(site, "style.css"), join(dist, "style.css"))
 cpSync(join(site, "assets"), join(dist, "assets"), { recursive: true })
-if (existsSync(shots)) cpSync(shots, join(dist, "screenshots"), { recursive: true })
 cpSync(join(site, "_headers"), join(dist, "_headers"))
+for (const f of ["story.js", "hero.js", "site.js"]) cpSync(join(site, f), join(dist, f))
 console.log(`built ${dist}: ${themes.length} themes, ${features.length} features, ${installTabs.length} install tabs, ${markdown.length} bytes of markdown`)

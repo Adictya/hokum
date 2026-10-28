@@ -5,7 +5,7 @@ interface Env {
   ASSETS: { fetch(request: Request | string): Promise<Response> }
 }
 
-const assets = /^\/(assets\/|screenshots\/|style\.css$|favicon\.svg$)/
+const assets = /^\/(assets\/|(style\.css|favicon\.svg|story\.js|hero\.js|site\.js)$)/
 
 // User agents that aren't browsers: HTTP libraries, command line tools and AI crawlers/fetchers.
 const agents =

@@ -7,14 +7,24 @@ same page as one self-contained markdown document: install, usage, the configura
 the complete theme guide (`docs/themes.md`) and the source of every built-in theme, with links
 between them rewritten to headings. Hokum's **Make your own theme** prompt points agents here.
 
+The page has no images. It opens on a desktop where a crime story plays out entirely in
+notification cards, in Capsule, stacking in the top-right corner: a $40 pizza dispute, a lake, a
+lot of lime, and every escalation after it. The install command sits on that desktop from the
+start.
+
 | Source | Becomes |
 |---|---|
-| `README.md` | The intro, install tabs, usage and features (the bold bullets under `## Use`) |
+| `README.md` | The install section, usage and features (the bold bullets under `## Use`) |
 | `docs/theming.md` | Configure, with the full reference folded under it |
 | `docs/themes.md` | Make your own theme, with the full guide folded under it |
-| `themes/*.kdl` | The theme gallery (name and leading comment); inlined in the markdown |
-| `Cargo.toml` | The version in the masthead |
-| `site/screenshots/` | Theme screenshots, rendered by Hokum itself (below) |
+| `themes/*.kdl` | The theme list (name and leading comment) and the markdown |
+| `story.js` | The story: every card as data (`at` seconds, story `time`, app, title, body, actions) |
+| `hero.js` | The cards: Capsule's look and spring, stacking, the "N more" pill, drag, fling, dismiss, the desktop clock, skip and replay |
+
+The prototype it came from lives at https://anoma.ly/labs/hokum-story (branch `hero-story`,
+`site-prototypes/story/`); keep `story.js` the same in both. `?t=60` starts the story 60 s in.
+The story pauses while the hero is scrolled off screen, and `prefers-reduced-motion` keeps the
+same script without the movement.
 
 ## Who gets markdown
 
@@ -29,8 +39,8 @@ between them rewritten to headings. Hokum's **Make your own theme** prompt point
   browsers, and anything without `Mozilla` in it.
 - Otherwise (a browser: `text/html` in `Accept` and a Mozilla user agent) HTML.
 
-Every other path except assets (`/style.css`, `/favicon.svg`, `/assets/*`, `/screenshots/*`)
-redirects to `/`, including the old `/themes.md`, `/theming.md`, `/index.md`, `/llms.txt` and
+Every other path except assets (`/style.css`, `/favicon.svg`, `/story.js`, `/hero.js`, `/site.js`, `/assets/*`) redirects
+to `/`, including the old `/themes.md`, `/theming.md`, `/index.md`, `/llms.txt` and
 `/themes/*.kdl`. `www.hokum.app` redirects to the apex.
 
 ## Build
@@ -38,30 +48,15 @@ redirects to `/`, including the old `/themes.md`, `/theming.md`, `/index.md`, `/
 ```sh
 cd site
 bun install
-bun run build                       # writes site/dist (index.html, page.md, assets)
-bunx wrangler dev                   # serves dist through the Worker, as in production
-curl -s localhost:8787 | head       # markdown
+bun run build                        # writes dist/ (index.html, page.md, assets)
+bunx wrangler dev                    # serves dist through the Worker, as in production
+curl -s localhost:8787 | head        # markdown
 open 'http://localhost:8787/?format=html'
 ```
 
 `build.ts` is the whole generator: `marked` for the markdown, a template string for the page,
-`style.css` for the look (one column, Inter for prose and IBM Plex Mono for anything typed, after
-opentunnel.xyz). No JavaScript is loaded from elsewhere; the inline script only adds copy buttons
-and opens a folded reference when a link points into it. Fonts are self-hosted from `assets/`.
-
-## Screenshots
-
-```sh
-site/scripts/screenshots.sh
-```
-
-Rendering needs a GPU, so this pushes the current commit to a throwaway clone on `apollo`
-(`HOKUM_GPU_HOST` to change it), builds a release binary there in `/tmp/hokum-site-target`, and
-for each built-in theme runs `hokum service --snap … --scene demo` in dark and light with a
-throwaway `XDG_CONFIG_HOME` whose `config.kdl` is `theme "<id>"`. The PNGs come back, are given a
-common frame (960×1260) and saved as WebP in `site/screenshots/`. The host's installed Hokum and
-`~/.config/hokum` aren't touched; `CLEAN=1` also removes the target dir. Rerun it when a theme or
-the card rendering changes, and commit the result.
+`style.css` for the look. No JavaScript is loaded from elsewhere and the CSP allows only this
+origin. Fonts (Inter, IBM Plex Mono) are self-hosted from `assets/`.
 
 ## Deploy
 
