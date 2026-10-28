@@ -1,0 +1,13 @@
+{
+  "name": "hokum-site",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "bun build.ts",
+    "dev": "bun build.ts && bunx serve dist",
+    "deploy": "bun build.ts && wrangler deploy"
+  },
+  "dependencies": {
+    "marked": "^16.0.0"
+  }
+}
