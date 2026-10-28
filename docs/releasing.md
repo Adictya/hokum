@@ -114,8 +114,9 @@ installing the newest file again.
   dry run of the build and packaging.
 - `dev` publishes a build of `dev` to the production service's `dev` channel
   (`https://anoma.ly/release/hokum/desktop/dev.json`). Every push to `dev`
-  runs it, except pushes that change only `docs/` or Markdown; a newer push
-  cancels a dev run still in progress, and
+  runs it, except pushes that change only `docs/` or Markdown; a running dev
+  release always finishes, and only the newest push that lands meanwhile
+  waits to run next (GitHub drops the ones between), and
   `gh workflow run release.yml --ref dev -f channel=dev -f ref=dev` runs it
   by hand. The version is `0.0.0-dev-<run number>`, as OpenCode and Hex
   number their dev builds (`scripts/set-crate-version.sh` stamps it into the

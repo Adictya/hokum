@@ -27,8 +27,8 @@ name: Release
 #
 # Channels (.github/release/plan.sh):
 # - dev: every push to dev (except docs- or Markdown-only) publishes
-#   0.0.0-dev-<run number> on the dev channel; a newer push cancels a dev run
-#   in progress.
+#   0.0.0-dev-<run number> on the dev channel; a running release finishes
+#   and only the newest push waits behind it (the ones between are skipped).
 # - check: a dispatch from dev builds and tests the same and publishes
 #   nothing; its last job pushes and deletes a throwaway v0.0.0-test-<run>
 #   tag to prove it can tag.
@@ -58,8 +58,10 @@ permissions:
 
 concurrency:
   group: release-${{ github.event_name == 'workflow_dispatch' && inputs.channel || 'dev' }}
-  # Only the dev channel: a newer push supersedes a dev build in progress.
-  cancel-in-progress: ${{ (github.event_name == 'workflow_dispatch' && inputs.channel || 'dev') == 'dev' }}
+  # Releases never cancel each other: the running one finishes, and of the
+  # pushes that land meanwhile only the newest waits (GitHub replaces an
+  # older pending run in the group), so a busy dev branch still publishes.
+  cancel-in-progress: false
 
 defaults:
   run:
