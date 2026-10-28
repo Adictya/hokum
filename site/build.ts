@@ -182,10 +182,11 @@ function embed(doc: Doc) {
 
 // The headline under the hero, and the start of the markdown.
 const headline = "Notifications for Wayland."
+const subline = "Themes, per-app rules and Do not disturb, all in one config file."
 
 const markdown = `# Hokum
 
-${headline}
+${headline} ${subline}
 
 ${intro}
 
@@ -323,16 +324,27 @@ const hokumProductIcon = `<svg viewBox="0 0 32 32" aria-hidden="true"><rect widt
 const anomalyMark = `<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="currentColor"><rect x="3" y="3" width="5" height="5" rx="1"/><rect x="10" y="3" width="5" height="5" rx="1"/><rect x="3" y="10" width="5" height="5" rx="1"/><rect x="10" y="10" width="5" height="5" rx="1"/><rect x="3" y="17" width="5" height="5" rx="1"/><rect x="10" y="17" width="5" height="5" rx="1"/><rect x="17.5" y="15.5" width="5" height="5" rx="1" transform="rotate(14 20 18)"/></g></svg>`
 const opencodeMark = `<svg viewBox="0 0 16 20" aria-hidden="true"><path d="M2 2h12v16H2z" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M5.2 10h5.6v4.8H5.2z" fill="currentColor" opacity=".5"/></svg>`
 
-// The install CTA: one panel per platform; site.js picks the visitor's (Arch unless the browser
-// says Ubuntu, Debian or Fedora), the tabs switch.
-const arch = installTabs.find((t) => t.id === "arch")!
-const installPanels = [
-  { id: "arch", label: "Arch", html: `<div class="command"><code>${escape(arch.code)}</code><button type="button" data-copy="${escape(arch.code)}">Copy</button></div><p class="cta-note">From the AUR.</p>` },
-  { id: "debian", label: "Debian / Ubuntu", html: `<a class="download" href="${release}/linux-x64-deb"><span>Download .deb</span><span aria-hidden="true">↓</span></a><p class="cta-note">x86_64 · <a href="${release}/linux-arm64-deb">ARM64</a>. Install with <code>sudo apt install ./hokum.deb</code>.</p>` },
-  { id: "fedora", label: "Fedora / openSUSE", html: `<a class="download" href="${release}/linux-x64-rpm"><span>Download .rpm</span><span aria-hidden="true">↓</span></a><p class="cta-note">x86_64 · <a href="${release}/linux-arm64-rpm">ARM64</a>. Install with <code>sudo dnf install ./hokum.rpm</code>.</p>` },
-  { id: "binary", label: "Other Linux", html: `<a class="download" href="${release}/linux-x64"><span>Download the binary</span><span aria-hidden="true">↓</span></a><p class="cta-note">x86_64 · <a href="${release}/linux-arm64">ARM64</a> · <a href="${repo}/releases" rel="noopener">GitHub Releases</a>. Needs a Wayland compositor with layer shell.</p>` },
+// The install row: a tab per platform and one `$` command, as opentunnel does it. site.js picks
+// the visitor's platform (Arch unless the browser says Ubuntu, Debian or Fedora) and switches
+// x86_64/ARM64; without JavaScript the radios still switch platforms.
+const tabCode = (id: string) => installTabs.find((t) => t.id === id)!.code.split("\n").join(" && ")
+const binPath = "~/.local/bin/hokum"
+const installs: { id: string; label: string; x64: string; arm64?: string; link?: string }[] = [
+  { id: "arch", label: "arch", x64: tabCode("arch"), link: `<a href="https://aur.archlinux.org/packages/hokum-bin" rel="noopener">aur ↗</a>` },
+  { id: "debian", label: "debian", x64: tabCode("debian") },
+  { id: "fedora", label: "fedora", x64: tabCode("fedora") },
+  { id: "binary", label: "other", x64: `curl -fLo ${binPath} ${release}/linux-x64 && chmod +x ${binPath}`, link: `<a href="${repo}/releases" rel="noopener">releases ↗</a>` },
 ]
-
+for (const i of installs) if (i.id !== "arch") i.arm64 = i.x64.replace(/linux-x64/g, "linux-arm64")
+const copyIcon = `<svg class="i-copy" viewBox="0 0 16 16" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M10.5 3.5v-.2c0-1-.8-1.8-1.8-1.8H3.3c-1 0-1.8.8-1.8 1.8v5.4c0 1 .8 1.8 1.8 1.8h.2" fill="none" stroke="currentColor" stroke-width="1.2"/></svg><svg class="i-done" viewBox="0 0 16 16" aria-hidden="true"><path d="m3.5 8.5 3 3 6-7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`
+const cmd = (code: string, cls: string) =>
+  `<span class="inst-cmd ${cls}"><code>${escape(code)}</code><button type="button" class="inst-copy" data-copy="${escape(code)}" aria-label="Copy command">${copyIcon}</button></span>`
+const installRow = `<div class="inst" role="group" aria-label="Install">
+${installs.map((t, i) => `    <input class="sr" type="radio" name="platform" id="p-${t.id}"${i === 0 ? " checked" : ""} aria-label="${t.label}">`).join("\n")}
+    <input class="sr" type="checkbox" id="arm" aria-label="ARM64 build">
+    <div class="inst-tabs">${installs.map((t) => `<label for="p-${t.id}">${t.label}</label>`).join("")}</div>
+${installs.map((t) => `    <div class="inst-line" id="panel-${t.id}"><span class="inst-p" aria-hidden="true">$</span>${t.arm64 ? cmd(t.x64, "x64") + cmd(t.arm64, "arm64") : cmd(t.x64, "")}<span class="inst-meta">${t.arm64 ? `<label for="arm" class="cpu"><span class="x64">x86_64</span><span class="arm64">arm64</span></label>` : ""}${t.link ?? ""}</span></div>`).join("\n")}
+  </div>`
 const clipTiles = [
   { id: "themes", title: "Eight themes built in", line: "One line of config switches the look. Or have your agent write a new one." },
   { id: "stack", title: "Springs, not slides", line: "Cards stack, restack and leave on real spring physics." },
@@ -348,61 +360,49 @@ const html = `<!doctype html>
 <title>Hokum — notifications for Wayland</title>
 <meta name="description" content="${escape(tagline)}">
 <meta name="color-scheme" content="dark">
-<meta name="theme-color" content="#09090c">
+<meta name="theme-color" content="#000000">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Hokum — notifications for Wayland">
 <meta property="og:description" content="${escape(tagline)}">
 <meta property="og:url" content="${origin}/">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="alternate" type="text/markdown" href="/?format=md" title="This page as markdown, for agents">
-<link rel="preload" href="/assets/inter.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/assets/valkyrie-regular.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-<header class="top">
-  <div class="switcher">
-    <button type="button" class="switcher-button" aria-expanded="false" aria-controls="products-menu">
-      <span class="current">Hokum</span>
-      <span class="chev" aria-hidden="true"></span>
-    </button>
-    <div class="menu" id="products-menu" hidden>
-      <p class="menu-head">Anomaly products</p>
-      <a class="menu-item current" href="/" aria-current="page">${hokumProductIcon}<span><b>Hokum</b><i>Notifications for Wayland</i></span></a>
-${products.map((p) => `      <a class="menu-item" href="${p.url}">${productIcon(p)}<span><b>${escape(p.name)}</b><i>${escape(p.line)}</i></span></a>`).join("\n")}
-      <a class="menu-foot" href="https://anoma.ly">anoma.ly →</a>
-    </div>
-  </div>
-  <a class="top-github" href="${repo}" rel="noopener">${githubIcon}<span>GitHub</span></a>
-</header>
-
-<div class="desk" id="desk">
+<div class="desk first" id="desk">
   <div class="wall" aria-hidden="true"><div class="stars"></div></div>
-  <div class="bar" aria-hidden="true">
-    <div class="ws"><i class="on"></i><i></i><i></i></div>
-    <div class="clock" id="clock"></div>
-    <div class="tray">
-      <svg viewBox="0 0 16 16"><path d="M1.5 6a9.5 9.5 0 0 1 13 0M3.8 8.6a6.2 6.2 0 0 1 8.4 0M6 11.1a3 3 0 0 1 4 0" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="8" cy="13.4" r="1" fill="currentColor"/></svg>
-      <svg viewBox="0 0 22 16"><rect x="1" y="4" width="17" height="8" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="3" y="6" width="9" height="4" rx="1" fill="currentColor"/><rect x="19" y="6.5" width="1.6" height="3" rx=".8" fill="currentColor"/></svg>
+  <header class="top">
+    <div class="switcher">
+      <button type="button" class="switcher-button" aria-expanded="false" aria-controls="products-menu">
+        <span class="current">Hokum</span>
+        <span class="chev" aria-hidden="true"></span>
+      </button>
+      <div class="menu" id="products-menu" hidden>
+        <p class="menu-head">Anomaly products</p>
+        <a class="menu-item current" href="/" aria-current="page">${hokumProductIcon}<span><b>Hokum</b><i>Notifications for Wayland</i></span></a>
+${products.map((p) => `        <a class="menu-item" href="${p.url}">${productIcon(p)}<span><b>${escape(p.name)}</b><i>${escape(p.line)}</i></span></a>`).join("\n")}
+        <a class="menu-foot" href="https://anoma.ly">anoma.ly →</a>
+      </div>
     </div>
-  </div>
+    <span class="clock" id="clock" aria-hidden="true"></span>
+    <a class="top-github" href="${repo}" rel="noopener">${githubIcon}<span>GitHub</span></a>
+  </header>
   <div class="stack" id="stack" aria-live="polite" aria-label="Notifications"></div>
   <div class="more" id="more" aria-hidden="true"></div>
+  <section class="intro" id="intro">
+    <h1>${escape(headline)}</h1>
+    <p class="sub">${escape(subline)}</p>
+    ${installRow}
+  </section>
   <nav class="controls" aria-label="Story">
-    <button id="skip" type="button">Skip</button>
-    <button id="replay" type="button">Replay</button>
+    <button id="skip" type="button">skip</button>
+    <button id="replay" type="button">replay</button>
   </nav>
 </div>
 
 <main>
-<section class="intro">
-  <h1>${escape(headline)}</h1>
-  <div class="cta" role="group" aria-label="Install">
-${installPanels.map((t, i) => `    <input type="radio" name="platform" id="p-${t.id}"${i === 0 ? " checked" : ""}>`).join("\n")}
-${installPanels.map((t) => `    <div class="panel" id="panel-${t.id}">${t.html}</div>`).join("\n")}
-    <div class="platforms">${installPanels.map((t) => `<label for="p-${t.id}">${escape(t.label)}</label>`).join("")}</div>
-  </div>
-</section>
-
 <section class="clips" aria-label="Features">
 ${clipTiles.map((c) => `  <figure class="clip" data-clip="${c.id}">
     <div class="clip-screen"${c.id === "themes" ? ' data-theme="capsule"' : ""}>${c.id === "themes" ? '<span class="clip-label">theme "capsule"</span>' : ""}${c.id === "dnd" ? '<span class="clip-dnd"><i></i>Do not disturb</span><span class="clip-held"></span>' : ""}</div>
