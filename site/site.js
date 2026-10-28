@@ -1,18 +1,4 @@
-// The page around the hero: the product menu, the platform guess and copy buttons.
-
-// Product switcher.
-const switcher = document.querySelector(".switcher-button")
-const menu = document.getElementById("products-menu")
-function setMenu(open) {
-  menu.hidden = !open
-  switcher.setAttribute("aria-expanded", String(open))
-}
-switcher.addEventListener("click", (e) => {
-  e.stopPropagation()
-  setMenu(menu.hidden)
-})
-document.addEventListener("click", (e) => { if (!menu.hidden && !menu.contains(e.target)) setMenu(false) })
-document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !menu.hidden) { setMenu(false); switcher.focus() } })
+// The page around the hero: the platform guess and copy buttons.
 
 // Which install to show first. Browsers rarely say the distribution; when they do, use it.
 // `?platform=arch|debian|fedora|binary` overrides.

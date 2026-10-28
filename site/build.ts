@@ -21,19 +21,6 @@ const themesDoc = read("docs/themes.md")
 const themingDoc = read("docs/theming.md")
 const version = read("Cargo.toml").match(/^version = "(.+)"/m)?.[1] ?? ""
 
-// Other Anomaly products, for the header's switcher. Icons are drawn here, not loaded.
-const products = [
-  { name: "opencode", line: "The open source coding agent.", url: "https://opencode.ai", repo: "https://github.com/anomalyco/opencode",
-    icon: `<rect width="32" height="32" rx="8" fill="#211e1e"/><path d="M10 9h12v14H10z" fill="none" stroke="#fff" stroke-width="2.4"/><path d="M13 16h6v4h-6z" fill="#fff" opacity=".45"/>` },
-  { name: "Hex", line: "Local voice dictation: hold a key, speak, and it appears.", url: "https://hex.kitlangton.com", repo: "https://github.com/anomalyco/hex",
-    icon: `<rect width="32" height="32" rx="8" fill="#141414"/><path d="M16 6.5l8.2 4.75v9.5L16 25.5l-8.2-4.75v-9.5z" fill="none" stroke="#fff" stroke-width="1.8"/><path d="M16 12.5l3.1 1.8v3.4L16 19.5l-3.1-1.8v-3.4z" fill="#ffb347"/>` },
-  { name: "opentunnel", line: "End-to-end encrypted public URLs for apps on your machine.", url: "https://opentunnel.xyz", repo: "https://github.com/anomalyco/opentunnel",
-    icon: `<rect width="32" height="32" rx="8" fill="#000"/><path d="M7 24V16a9 9 0 0 1 18 0v8" fill="none" stroke="#ff2a2a" stroke-width="2.2"/><path d="M11.5 24v-8a4.5 4.5 0 0 1 9 0v8" fill="none" stroke="#ff2a2a" stroke-width="2.2" opacity=".55"/>` },
-  { name: "OpenTUI", line: "A library for building terminal user interfaces.", url: "https://opentui.com", repo: "https://github.com/anomalyco/opentui",
-    icon: `<rect width="32" height="32" rx="8" fill="#0f172a"/><rect x="6.5" y="8.5" width="19" height="15" rx="2" fill="none" stroke="#e2e8f0" stroke-width="1.6"/><path d="M10 13.5l3 2.5-3 2.5M15 19h6" fill="none" stroke="#5eead4" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>` },
-  { name: "models.dev", line: "An open source database of AI models.", url: "https://models.dev", repo: "https://github.com/anomalyco/models.dev",
-    icon: `<rect width="32" height="32" rx="8" fill="#18181b"/><g fill="#fff"><rect x="8" y="8" width="7" height="7" rx="1.5"/><rect x="17" y="8" width="7" height="7" rx="1.5" opacity=".55"/><rect x="8" y="17" width="7" height="7" rx="1.5" opacity=".55"/><rect x="17" y="17" width="7" height="7" rx="1.5" opacity=".3"/></g>` },
-]
 const escape = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")
 
@@ -257,8 +244,6 @@ const settingsShot = `<figure class="shot">
 const signature = readFileSync(join(site, "footer-signature.svg"), "utf8")
 const githubIcon = `<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>`
 
-const productIcon = (p: { icon: string }) => `<svg viewBox="0 0 32 32" aria-hidden="true">${p.icon}</svg>`
-const hokumProductIcon = `<svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#26263a"/><text x="16" y="22" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="17" font-weight="700" fill="#fff">H</text></svg>`
 
 // The install row: a tab per platform and one `$` command, as opentunnel does it. site.js picks
 // the visitor's platform (Arch unless the browser says Ubuntu, Debian or Fedora) and switches
@@ -304,18 +289,7 @@ const html = `<!doctype html>
 <div class="first">
   <div class="wall" aria-hidden="true"><div class="stars"></div></div>
   <header class="top">
-    <div class="switcher">
-      <button type="button" class="switcher-button" aria-expanded="false" aria-controls="products-menu">
-        <span class="current">Hokum</span>
-        <span class="chev" aria-hidden="true"></span>
-      </button>
-      <div class="menu" id="products-menu" hidden>
-        <p class="menu-head">Anomaly products</p>
-        <a class="menu-item current" href="/" aria-current="page">${hokumProductIcon}<span><b>Hokum</b><i>Notifications for Wayland</i></span></a>
-${products.map((p) => `        <a class="menu-item" href="${p.url}">${productIcon(p)}<span><b>${escape(p.name)}</b><i>${escape(p.line)}</i></span></a>`).join("\n")}
-        <a class="menu-foot" href="https://anoma.ly">anoma.ly →</a>
-      </div>
-    </div>
+    <a class="wordmark" href="/">Hokum</a>
     <a class="top-github" href="${repo}" rel="noopener">${githubIcon}<span>GitHub</span></a>
   </header>
   <div class="split">
