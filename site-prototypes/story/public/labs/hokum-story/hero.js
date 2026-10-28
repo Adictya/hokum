@@ -38,6 +38,11 @@
     Zillow: ["#006aff", W("M5 9.6L10 5.4l5 4.2M6.6 8.4v6.2h6.8V8.4")],
     News: ["#fa2d48", `<path d="M6.2 14.6V5.4l7.6 9.2V5.4" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"/>`],
     "Mission Control": ["#1e293b", `<path d="M10 3.8c2 1.4 2.8 3.6 2.6 6.6l1.6 2v1.8l-2.4-.9H8.2l-2.4.9v-1.8l1.6-2C7.2 7.4 8 5.2 10 3.8z" fill="#fff"/><circle cx="10" cy="8.4" r="1.1" fill="#1e293b"/><path d="M9 14.6l1 1.8 1-1.8" fill="#ff9f0a"/>`],
+    ChatGPT: ["#10a37f", [0, 60, 120].map((a) => `<ellipse cx="10" cy="10" rx="5.6" ry="2.6" fill="none" stroke="#fff" stroke-width="1.4" transform="rotate(${a} 10 10)"/>`).join("")],
+    LinkedIn: ["#0a66c2", `<rect x="5.4" y="8.4" width="2.1" height="6.2" rx=".4" fill="#fff"/><circle cx="6.45" cy="6.2" r="1.25" fill="#fff"/><path d="M9.2 8.4h2v1c.4-.7 1.2-1.2 2.2-1.2 1.6 0 2.1 1.1 2.1 2.5v3.9h-2.1v-3.4c0-.8-.2-1.3-.9-1.3s-1.1.5-1.1 1.3v3.4H9.2z" fill="#fff"/>`],
+    "Lime Corp": ["#84cc16", `<circle cx="10" cy="10" r="5.4" fill="#ecfccb"/><circle cx="10" cy="10" r="4.4" fill="#a3e635"/>` + [0, 60, 120, 180, 240, 300].map((a) => `<path d="M10 10V5.8" stroke="#ecfccb" stroke-width=".9" transform="rotate(${a} 10 10)"/>`).join("")],
+    Forbes: ["#111", `<path d="M7.4 5.6h5.4M8.8 5.6v8.8M8.8 9.8h3.2M7.4 14.4h3" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>`],
+    "Lake Man 2032": ["#b91c1c", `<path d="M10 4.8l1.5 3.2 3.5.4-2.6 2.4.7 3.5L10 12.6l-3.1 1.7.7-3.5L5 8.4l3.5-.4z" fill="#fff"/>`],
     Weather: ["#3b82f6", `<circle cx="10" cy="10" r="3" fill="#ffd60a"/>` + [0, 45, 90, 135, 180, 225, 270, 315].map((a) => `<path d="M10 4.2v1.3" stroke="#ffd60a" stroke-width="1.3" stroke-linecap="round" transform="rotate(${a} 10 10)"/>`).join("")],
   }
   // Apps without an icon get their letter on a stable tint, as the daemon draws them.
