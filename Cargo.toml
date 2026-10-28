@@ -1,0 +1,20 @@
+[package]
+name = "hokum"
+version = "0.0.1"
+edition = "2024"
+license = "MIT"
+description = "Hokum (hokum.app): a freedesktop notification daemon for Wayland, drawn with Rune."
+homepage = "https://hokum.app"
+repository = "https://github.com/anomalyco/hokum"
+
+[dependencies]
+rune = { git = "https://github.com/anomalyco/rune.git", rev = "e8e1945c96e67a5d98cf3ebeb5d4d5dbe870b407" }
+rune-kit = { git = "https://github.com/anomalyco/rune.git", rev = "e8e1945c96e67a5d98cf3ebeb5d4d5dbe870b407" }
+rune-theme-opencode = { git = "https://github.com/anomalyco/rune.git", rev = "e8e1945c96e67a5d98cf3ebeb5d4d5dbe870b407" }
+zbus = "5"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+libc = "0.2"
+
+[profile.release]
+codegen-units = 16
