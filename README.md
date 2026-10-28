@@ -46,6 +46,7 @@ systemctl --user enable --now hokum.service
 ```sh
 hokum                     # the settings window (starts Hokum if it isn't running)
 hokum service [--replace] # run in the background (what hokum.service starts)
+hokum check [path]        # report problems in config.kdl, or in a theme or config file
 hokum --version
 ```
 
@@ -53,13 +54,15 @@ Like Hex, Hokum is one process: the service owns the bus name, draws the cards o
 click-through overlay and hosts the settings window. Launching `hokum` again shows that window.
 
 - **One config file:** `~/.config/hokum/config.kdl` starts from a theme and overrides anything:
-  look (`tokens`), layout (`template`), per-app and per-text `rule`s, and `behaviour`. The
+  look (`tokens`), layout (`template`), per-app and per-text `rule`s, and `behaviour` (which
+  only the config sets; themes are just looks). The
   settings window edits the same file, keeping your comments, and hand edits apply as you save.
   See [docs/theming.md](docs/theming.md).
 - **Themes:** eight built in (Soft, Crisp, Capsule, Ribbon, Terminal, Bubble, Signal, Pill), shown
   in a gallery as real cards. Capsule, with app icons, is the default. Custom themes are written
   by your coding agent: the settings window gives you a prompt that points it at
-  [docs/themes.md](docs/themes.md), the complete guide to the format. A Rhai script can rewrite
+  [hokum.app/themes.md](https://hokum.app/themes.md) ([docs/themes.md](docs/themes.md)), the
+  complete guide to the format. A Rhai script can rewrite
   or drop notifications too.
 - **Per app:** mute, how long its cards stay, and breaking through Do not disturb, for every app
   that has sent you a notification.

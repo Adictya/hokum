@@ -6,7 +6,7 @@ It starts from a theme and overrides whatever you like:
 ```kdl
 theme "signal"               // start from a theme (default: "capsule")
 
-behaviour {
+behaviour {                  // only here, never in a theme
     position "bottom-right"
     stay 6                   // seconds, when the app doesn't say
     show-at-most 5
@@ -24,14 +24,15 @@ rule app="Slack" { tokens { accent "#d38be0" } }
 rule app="Spotify" { hide }
 ```
 
-The settings window edits part of this file: picking a theme writes `theme "…"`, the Behaviour
-section writes `behaviour`, and the Apps section writes `rule app="…"` blocks (mute, how long
-cards stay, breaking through Do not disturb). Changes keep your comments and layout, and
-choosing a theme's own value removes the override rather than repeating it. The look itself
+The settings window edits part of this file: picking a theme writes `theme "…"`, the
+appearance switch and the Behaviour page write `behaviour`, and each app's page under
+Applications writes a `rule app="…"` block (mute, how long cards stay, breaking through Do not
+disturb). Changes keep your comments and layout, and choosing a default value removes the
+setting rather than repeating it. The look itself
 (`tokens`, `template`, styling in rules) isn't in the window: write it in the file, or have a
 coding agent write a theme (below). Edit the file by hand and the window and the notifications
 update as you save; problems show in the window with line numbers, and Hokum keeps drawing with
-the last config that worked.
+the last config that worked. `hokum check` reports the same problems in a terminal.
 
 **Themes** use the same format. Built-in ones are fixed: [Soft](../themes/soft.kdl),
 [Crisp](../themes/crisp.kdl), [Capsule](../themes/capsule.kdl), [Ribbon](../themes/ribbon.kdl),
@@ -42,10 +43,14 @@ overrides on top. Your own themes live in `~/.config/hokum/themes/`: `theme "emb
 itself start from another theme. The settings window shows your themes beside the built-in ones,
 and a theme by path as a Custom entry.
 
-**Making a theme** is a job for your coding agent: **Make your own theme** in the settings
-window has a prompt to copy. It points the agent at [themes.md](themes.md), a complete guide to
-the format (every token, the template language, rules, two worked examples, and how to render a
-theme headlessly to check it).
+A theme is only looks: `behaviour` is yours, set in config.kdl (a theme with a `behaviour`
+block is reported as a problem).
+
+**Making a theme** is a job for your coding agent: **Make your own theme** under Appearance in
+the settings window has a prompt to copy. It points the agent at
+[hokum.app/themes.md](https://hokum.app/themes.md) ([themes.md](themes.md) here), a complete
+guide to the format (every token, the template language, rules, two worked examples, and how to
+check a theme with `hokum check` and render it headlessly).
 
 A theme names itself with `name "…"` (shown in the gallery). The built-in card is a template,
 [default.kdl](../themes/default.kdl), which every theme falls back to.
@@ -54,6 +59,10 @@ A **script** (`~/.config/hokum/script.rhai`) is separate because it's code: it s
 notification first and can rewrite, route or drop it.
 
 ## Behaviour
+
+Behaviour comes only from config.kdl; anything unset uses the default (top right, 6 seconds, 5
+cards, pause on hover, Do not disturb off, system appearance). The settings window shows
+appearance under Appearance and the rest under Behaviour.
 
 | Key | Value |
 |---|---|
@@ -89,7 +98,7 @@ palette, every element, property, field, filter and condition.
 A rule matches notifications and changes them. Matchers are `app`, `summary`, `body` (case
 insensitive, `*` matches anything) and `urgency`; a rule with several matchers needs them all.
 Every matching rule applies in order, a theme's before the config's, so later rules win.
-Actions: `template "…"`, `tokens { … }`, `timeout` (seconds or `"never"`), `hide`, and
+Actions: `template "…"` (from the theme, anything it starts from, or this file), `tokens { … }`, `timeout` (seconds or `"never"`), `hide`, and
 `interrupt` (show even during Do not disturb).
 
 The settings window manages rules that match one app by its exact name (`rule app="Slack"`),

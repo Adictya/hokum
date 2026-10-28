@@ -1,9 +1,9 @@
 # Writing a Hokum theme
 
 This page is written for coding agents (and people) making a custom theme for
-[Hokum](https://github.com/anomalyco/hokum), a notification daemon for Wayland. Hokum's settings
-window only picks one of the built-in themes and sets behaviour; everything about the look of a
-custom theme lives in files you write. This page has everything needed to write one from
+[Hokum](https://hokum.app), a notification daemon for Wayland. Hokum's settings window only
+picks one of the built-in themes and sets behaviour; everything about the look of a custom
+theme lives in files you write. This page has everything needed to write one from
 scratch and check it without a display.
 
 ## The short version
@@ -12,8 +12,8 @@ scratch and check it without a display.
    theme's (`soft`, `crisp`, `capsule`, `ribbon`, `terminal`, `bubble`, `signal`, `pill`).
 2. Point the config at it: in `~/.config/hokum/config.kdl`, set `theme "<id>"` (change only
    that line; keep everything else in the file).
-3. Render it headlessly in a test folder, look at the PNG, fix, repeat
-   ([Checking your work](#checking-your-work)).
+3. Run `hokum check ~/.config/hokum/themes/<id>.kdl` until it says OK, then render it headlessly
+   in a test folder, look at the PNG, fix, repeat ([Checking your work](#checking-your-work)).
 
 A running Hokum notices the change within a second and redraws; there's nothing to restart.
 
@@ -29,8 +29,9 @@ unset or not absolute):
 | `script.rhai` | An optional script that rewrites or drops notifications |
 
 A theme and the config are the same format. The config is a theme of its own, merged on top of
-the theme it names, so anything below works in either file. Prefer putting the look in a theme
-file and leaving the config to the user's choices.
+the theme it names, so anything below works in either file. The one difference: only the config
+has a `behaviour` block (where notifications show, for how long, light or dark); a theme is only
+looks. Prefer putting the look in a theme file and leaving the config to the user's choices.
 
 ### Theme references and chains
 
@@ -47,7 +48,7 @@ usually what you want for a theme written from scratch.
 
 How layers merge, bottom to top (defaults → base themes → the theme → the config):
 
-- `tokens`, `tokens "dark"`, `tokens "light"` and `behaviour` merge key by key; the top wins.
+- `tokens`, `tokens "dark"` and `tokens "light"` merge key by key; the top wins.
 - `template "name"` replaces a template of the same name.
 - `rule`s accumulate: lower layers' rules run first, so later ones win.
 
@@ -63,8 +64,9 @@ tokens "dark" { … }     // overrides when the appearance is dark
 tokens "light" { … }    // overrides when the appearance is light
 template "card" { … }   // the layout of a card's contents (any number of templates)
 rule app="Slack" { … }  // match notifications and change them (any number)
-behaviour { … }         // position and timing; usually left to the user's config
 ```
+
+A theme can't have a `behaviour` block; that's an error pointing to config.kdl.
 
 KDL notes: strings are quoted (`"#ff8a4c"`), booleans are `#true`/`#false`, several nodes can
 share a line when separated by `;`, and `//` starts a comment. Properties are `key=value` with
@@ -266,7 +268,7 @@ Every matching rule applies, in order.
 
 | Action | Effect |
 |---|---|
-| `template "name"` | Draw with another template. Define it in the same file as the rule |
+| `template "name"` | Draw with another template: one from this file, any theme it starts from, or default.kdl |
 | `tokens { … }` | Override tokens for these cards (any token above) |
 | `timeout 10` / `timeout "never"` | How long they stay; `0` is also never |
 | `hide` | Don't show them |
@@ -291,11 +293,12 @@ the user's config; the settings window manages `rule app="…"` blocks there.
 
 ## Behaviour
 
-`behaviour { … }` holds `position` (`"top-right"`, `"top-left"`, `"bottom-right"`,
-`"bottom-left"`), `stay` (seconds), `show-at-most` (1 to 20), `pause-on-hover` and
-`do-not-disturb` (`#true`/`#false`) and `appearance` (`"system"`, `"light"`, `"dark"`). These are
-the user's choices, set in the settings window and written to `config.kdl`; a theme normally
-leaves them out.
+Behaviour isn't part of a theme. `behaviour { … }` lives only in `config.kdl`: `position`
+(`"top-right"`, `"top-left"`, `"bottom-right"`, `"bottom-left"`), `stay` (seconds),
+`show-at-most` (1 to 20), `pause-on-hover` and `do-not-disturb` (`#true`/`#false`) and
+`appearance` (`"system"`, `"light"`, `"dark"`). The settings window writes it, and anything
+unset uses Hokum's defaults (top right, 6 seconds, 5 cards, pause on hover, system appearance).
+A theme should look right in both light and dark, since the user picks.
 
 ## Scripts
 
@@ -428,8 +431,21 @@ rule urgency="critical" {
 
 ## Checking your work
 
-Hokum renders headlessly with no display or D-Bus, which is how to check a theme. Work in a
-throwaway config folder so the user's setup isn't touched until the theme is right:
+First, `hokum check` loads a file exactly as Hokum does and lists every problem with its line,
+exiting non-zero if there are any:
+
+```sh
+hokum check ember.kdl          # a theme file, with the themes it starts from
+hokum check                    # ~/.config/hokum/config.kdl, its theme and script.rhai
+hokum check path/to/config.kdl # another config
+```
+
+A problem reads `ember.kdl: line 7: unknown token `colour``; a clean file prints
+`ember.kdl: OK (theme "Ember")`.
+
+Fix everything it reports before looking at pictures. Then render: Hokum renders headlessly
+with no display or D-Bus. Work in a throwaway config folder so the user's setup isn't touched
+until the theme is right:
 
 ```sh
 mkdir -p /tmp/hokum-check/hokum/themes
@@ -447,10 +463,9 @@ XDG_CONFIG_HOME=/tmp/hokum-check hokum --snap /tmp/hokum-check/settings.png --sc
 Then look at the PNGs. Check both appearances, that text is readable on the fill, that nothing
 is clipped or truncated that shouldn't be, and that the critical card stands out.
 
-Problems are printed to stderr by `hokum service --snap` (`hokum: config.kdl: line 3: …`
-for the config, `hokum: config.kdl: line 12: theme `ember`: …` for the theme file) and listed in red in the settings
-window. A theme with problems doesn't load at all: the snapshot falls back to Capsule, so a
-render that looks like the default means read stderr. The demo scene has no notification with a
+A theme with problems doesn't load at all: the snapshot falls back to Capsule, so a render that
+looks like the default means run `hokum check` (`hokum service --snap` also prints problems to
+stderr, and the settings window lists them in red). The demo scene has no notification with a
 picture, so `image` isn't exercised there.
 
 When it looks right, copy the file to `~/.config/hokum/themes/<id>.kdl` and set

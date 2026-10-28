@@ -419,6 +419,8 @@ pub enum Node {
 /// changes how long the card stays, or hides it.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Rule {
+    /// Where it is in its file, for problems found after merging.
+    pub line: usize,
     pub app: Option<String>,
     pub summary: Option<String>,
     pub body: Option<String>,
@@ -465,7 +467,7 @@ pub fn glob(pattern: &str, text: &str) -> bool {
     true
 }
 
-/// Behaviour a theme or the config sets; unset values keep what's below.
+/// Behaviour the config sets; unset values keep the defaults. Themes don't set behaviour.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Behave {
     pub position: Option<Position>,
@@ -1027,7 +1029,7 @@ impl Parser<'_> {
     }
 
     fn rule(&mut self, node: &KdlNode) -> Rule {
-        let mut r = Rule::default();
+        let mut r = Rule { line: self.line(node.span().offset()), ..Rule::default() };
         for (key, v) in self.props(node) {
             let Some(s) = self.string(node, v) else { continue };
             match key {
@@ -1056,9 +1058,18 @@ impl Parser<'_> {
     }
 }
 
-/// Parses a theme. Problems are collected rather than stopping at the first, so the settings
-/// window can list them all.
+/// Parses a theme file. Problems are collected rather than stopping at the first, so the
+/// settings window can list them all.
 pub fn parse(src: &str, id: &str) -> Result<Theme, Vec<Problem>> {
+    parse_as(src, id, false)
+}
+
+/// Parses config.kdl: a theme that can also set `behaviour`.
+pub fn parse_config(src: &str) -> Result<Theme, Vec<Problem>> {
+    parse_as(src, "config", true)
+}
+
+fn parse_as(src: &str, id: &str, config: bool) -> Result<Theme, Vec<Problem>> {
     let doc = match KdlDocument::parse(src) {
         Ok(d) => d,
         Err(e) => {
@@ -1091,7 +1102,8 @@ pub fn parse(src: &str, id: &str) -> Result<Theme, Vec<Problem>> {
                 Some(base) => theme.base = Some(base.into()),
                 None => p.problem(node, "`theme` names the theme to start from, like `theme \"signal\"`"),
             },
-            "behaviour" | "behavior" => theme.behave = p.behave(node),
+            "behaviour" | "behavior" if config => theme.behave = p.behave(node),
+            "behaviour" | "behavior" => p.problem(node, "themes don't set behaviour; it belongs in config.kdl's `behaviour { }`"),
             "tokens" => {
                 let o = p.tokens(node);
                 match args.first().and_then(|v| v.as_string()) {
@@ -1115,20 +1127,19 @@ pub fn parse(src: &str, id: &str) -> Result<Theme, Vec<Problem>> {
             other => p.problem(node, format!("unknown section `{other}`; use name, theme, behaviour, tokens, template, rule")),
         }
     }
-    for r in &theme.rules {
-        if let Some(t) = &r.template
-            && !theme.templates.contains_key(t)
-            && !default_templates_contains(t)
-        {
-            p.problems.push(Problem { line: 1, message: format!("a rule uses template `{t}`, which isn't defined") });
-        }
-    }
     if p.problems.is_empty() { Ok(theme) } else { Err(p.problems) }
 }
 
-/// Whether the default file defines `name`, without parsing it (parsing it runs this check).
-fn default_templates_contains(name: &str) -> bool {
-    DEFAULT.contains(&format!("template \"{name}\""))
+/// Rules in `rules` that pick a template `t` (a merged theme) doesn't define.
+pub fn missing_templates(rules: &[Rule], t: &Theme) -> Vec<Problem> {
+    rules
+        .iter()
+        .filter_map(|r| {
+            let name = r.template.as_ref()?;
+            (!t.templates.contains_key(name) && !default_templates().contains_key(name))
+                .then(|| Problem { line: r.line, message: format!("this rule uses template `{name}`, which isn't defined") })
+        })
+        .collect()
 }
 
 /// Where user themes live.
@@ -1214,6 +1225,10 @@ pub fn resolve(id: &str) -> Result<Theme, Vec<Problem>> {
     for t in chain.iter().rev() {
         out = out.merge(t);
     }
+    let missing = missing_templates(&out.rules, &out);
+    if !missing.is_empty() {
+        return Err(missing);
+    }
     let first = &chain[0];
     out.id = first.id.clone();
     out.name = if first.name == first.id { first.id.clone() } else { first.name.clone() };
@@ -1245,6 +1260,25 @@ mod tests {
                 panic!("{}\n{src}", e.iter().map(|p| p.to_string()).collect::<Vec<_>>().join("; "));
             }
         }
+    }
+
+    #[test]
+    fn themes_dont_set_behaviour_but_the_config_does() {
+        let src = "name \"x\"\nbehaviour {\n    position \"bottom-left\"\n}\n";
+        let e = parse(src, "x").unwrap_err();
+        assert!(e[0].line == 2 && e[0].message.contains("config.kdl"), "{e:?}");
+        let c = parse_config(src).unwrap();
+        assert_eq!(c.behaviour().position, Position::BottomLeft);
+    }
+
+    #[test]
+    fn rules_may_use_templates_from_below_but_not_missing_ones() {
+        let base = parse("template \"alert\" { text \"{summary}\" }\n", "base").unwrap();
+        let own = parse_config("theme \"base\"\nrule urgency=\"critical\" { template \"alert\" }\n").unwrap();
+        assert!(missing_templates(&own.rules, &base.merge(&own)).is_empty());
+        let own = parse_config("\n\nrule app=\"x\" { template \"nope\" }\n").unwrap();
+        let missing = missing_templates(&own.rules, &base.merge(&own));
+        assert_eq!(missing.iter().map(|p| p.line).collect::<Vec<_>>(), [3]);
     }
 
     #[test]

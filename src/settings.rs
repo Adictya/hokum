@@ -6,18 +6,19 @@
 use std::collections::HashMap;
 
 use rune::{AppSpec, Color, Cursor, Cx, El, Image, OverlayHandle, ScrollSpec, Tx, WindowOptions, col, el, row, text};
-use rune_kit::{Button, ButtonVariant, ControlSize, Kit, SegmentedControl, Switch};
+use rune_kit::{Button, ButtonVariant, ControlSize, Kit, SegmentedControl, Sidebar, SidebarRow, Switch};
 use zbus::blocking::Connection;
 
 use crate::card::{Cards, Note, card, samples, tint};
 use crate::cards::stack;
 use crate::config::{AppRule, Edit, Loaded, Value};
-use crate::style::{Appearance, Position};
+use crate::style::{Appearance, Behaviour, Position};
 use crate::theme::Theme;
 use crate::watch::Config;
 
-const SIDEBAR: f32 = 560.0;
-pub const SIZE: (f32, f32) = (1100.0, 780.0);
+const NAV: f32 = 200.0;
+const CONTENT: f32 = 540.0;
+pub const SIZE: (f32, f32) = (1240.0, 780.0);
 
 /// Whether this process answers `org.freedesktop.Notifications`.
 #[derive(Clone, PartialEq, Debug)]
@@ -44,6 +45,7 @@ pub struct Ui {
     error: Option<String>,
     script: ScriptStatus,
     copied: bool,
+    page: Page,
     /// Every theme the gallery offers: (id, name, the theme resolved).
     gallery: Vec<(String, String, Theme)>,
     /// Apps that have sent notifications, and apps the config has rules for.
@@ -185,7 +187,7 @@ fn kit(s: &Ui, cx: &Cx<Ui>) -> (&'static Kit, &'static Kit) {
     (window, preview)
 }
 
-fn section(k: &Kit, key: &str, title: El, rows: Vec<El>) -> El {
+fn section(k: &Kit, key: &str, title: Option<El>, rows: Vec<El>) -> El {
     let c = &k.c;
     let n = rows.len();
     let mut card = col().key("card").padding(4.0).radius(12.0).fill(c.bg_base).border(1.0, c.border_muted);
@@ -195,7 +197,7 @@ fn section(k: &Kit, key: &str, title: El, rows: Vec<El>) -> El {
             card = card.child(el().key(format!("sep{i}")).h(1.0).ml(12.0).mr(12.0).fill(c.border_muted));
         }
     }
-    col().key(key).gap(8.0).child(title).child(card)
+    col().key(key).w_full().gap(8.0).children(title).child(card)
 }
 
 fn heading(k: &Kit, title: impl Into<String>) -> El {
@@ -369,15 +371,6 @@ fn themes(s: &Ui, k: &Kit) -> El {
     if !s.gallery.iter().any(|g| g.0 == *id) {
         tiles.push(tile(s, k, tiles.len(), id, name, &s.loaded.base));
     }
-    let actions = row()
-        .key("theme-actions")
-        .gap(4.0)
-        .child(button(k, "edit-config", "Edit config.kdl", |s| s.edit_config()))
-        .child(button(k, "open-folder", "Open folder", |_| {
-            let dir = crate::style::dir();
-            let _ = std::fs::create_dir_all(dir.join("themes"));
-            open(&dir);
-        }));
     let mut top = col().key("theme-pick").w_full().padding(12.0).gap(12.0).child(row().key("tiles").w_full().gaps(12.0, 10.0).flex_wrap().children(tiles));
     if !crate::theme::is_bundled(id) {
         let line = match crate::theme::find(id) {
@@ -386,31 +379,16 @@ fn themes(s: &Ui, k: &Kit) -> El {
         };
         top = top.child(text(line).key("custom").font(k.ty.small).color(c.text_muted).wrap().w_full().selectable(true));
     }
-    top = top.child(actions);
-    for (i, p) in s.loaded.problems.iter().take(6).enumerate() {
-        top = top.child(text(p.to_string()).key(format!("problem-{i}")).font(k.ty.small.mono()).color(c.danger.fg).wrap().w_full());
-    }
-    let (dot, line) = match &s.script {
-        ScriptStatus::None => (c.icon_faint, "No script. A script can rewrite, route or drop notifications.".to_owned()),
-        ScriptStatus::Loaded => (c.success.icon, format!("{} is running", crate::script::path().display())),
-        ScriptStatus::Broken(e) => (c.danger.icon, format!("Script error: {e}")),
-    };
-    let script = row()
-        .key("script")
-        .w_full()
-        .px(12.0)
-        .py(8.0)
-        .gap(10.0)
-        .center_y()
-        .child(el().key("dot").size(8.0, 8.0).radius(4.0).fill(dot))
-        .child(text(line).key("line").font(k.ty.small).color(c.text_muted).wrap().grow(1.0).shrink().w(0.0))
-        .child(button(k, "edit-script", if s.script == ScriptStatus::None { "Create script" } else { "Edit script" }, |s| s.edit_script()));
-    section(k, "themes", heading(k, "Theme"), vec![top, script])
+    let mode = setting(k, "appearance", "Appearance", Some("Light or dark cards, or follow the system"), {
+        choice(k, "appearance-control", APPEARANCE, Some(s.loaded.behaviour.appearance), 240.0, move |s, v| {
+            s.behave("appearance", Value::Text(v.word().into()), v == Behaviour::default().appearance)
+        })
+    });
+    section(k, "themes", Some(heading(k, "Theme")), vec![top, mode])
 }
 
-const DOCS: &str = "https://github.com/anomalyco/hokum/blob/dev/docs/themes.md";
-const PROMPT: &str =
-    "Read https://github.com/anomalyco/hokum/blob/dev/docs/themes.md and create a Hokum theme for me, then switch my config to it. I want it to look like: ";
+const DOCS: &str = "https://hokum.app";
+const PROMPT: &str = "Read https://hokum.app/themes.md and create a Hokum theme for me, then switch my config to it. I want it to look like: ";
 
 /// Custom themes are written by a coding agent from the docs, not in this window.
 fn own_theme(s: &Ui, k: &Kit) -> El {
@@ -444,6 +422,7 @@ fn own_theme(s: &Ui, k: &Kit) -> El {
                 .gap(4.0)
                 .child(
                     Button::new(if s.copied { "Copied" } else { "Copy prompt" })
+                        .icon(if s.copied { &rune_theme_opencode::icons::CHECK } else { &rune_theme_opencode::icons::COPY })
                         .variant(ButtonVariant::Ghost)
                         .control_size(ControlSize::Regular)
                         .on_press_tx(|s: &mut Ui, tx: &mut Tx| {
@@ -455,6 +434,7 @@ fn own_theme(s: &Ui, k: &Kit) -> El {
                 )
                 .child(
                     Button::new("Open the guide")
+                        .icon(&rune_theme_opencode::icons::GLOBE)
                         .variant(ButtonVariant::Ghost)
                         .control_size(ControlSize::Regular)
                         .on_press_tx(|_: &mut Ui, tx: &mut Tx| {
@@ -464,72 +444,186 @@ fn own_theme(s: &Ui, k: &Kit) -> El {
                         .key("open-docs"),
                 ),
         );
-    section(k, "own-theme", heading(k, "Make your own theme"), vec![body])
+    section(k, "own-theme", Some(heading(k, "Make your own theme")), vec![body])
+}
+
+/// config.kdl, the themes folder and the script.
+fn files(s: &Ui, k: &Kit) -> El {
+    let c = &k.c;
+    let config = setting(k, "config", "config.kdl", Some(&home(&crate::config::path())), button(k, "edit-config", "Edit", |s| s.edit_config()));
+    let folder = setting(
+        k,
+        "folder",
+        "Themes folder",
+        Some(&home(&crate::theme::dir())),
+        button(k, "open-folder", "Open", |_| {
+            let dir = crate::theme::dir();
+            let _ = std::fs::create_dir_all(&dir);
+            open(&dir);
+        }),
+    );
+    let (dot, line) = match &s.script {
+        ScriptStatus::None => (c.icon_faint, "Can rewrite, route or drop notifications".to_owned()),
+        ScriptStatus::Loaded => (c.success.icon, format!("{} is running", home(&crate::script::path()))),
+        ScriptStatus::Broken(e) => (c.danger.icon, format!("Error: {e}")),
+    };
+    let script = row()
+        .key("script")
+        .w_full()
+        .min_h(56.0)
+        .px(12.0)
+        .py(8.0)
+        .gap(16.0)
+        .center_y()
+        .child(
+            col()
+                .key("copy")
+                .grow(1.0)
+                .shrink()
+                .w(0.0)
+                .gap(2.0)
+                .child(text("Script").key("title").font(k.ty.ui).color(c.text_base))
+                .child(
+                    row()
+                        .key("state")
+                        .w_full()
+                        .gap(6.0)
+                        .center_y()
+                        .child(el().key("dot").size(6.0, 6.0).radius(3.0).fill(dot))
+                        .child(text(line).key("line").font(k.ty.small).color(c.text_muted).wrap().grow(1.0).shrink().w(0.0)),
+                ),
+        )
+        .child(button(k, "edit-script", if s.script == ScriptStatus::None { "Create" } else { "Edit" }, |s| s.edit_script()));
+    section(k, "files", Some(heading(k, "Files")), vec![config, folder, script])
 }
 
 fn behaviour(s: &Ui, k: &Kit) -> El {
     let b = &s.loaded.behaviour;
-    let theirs = s.loaded.base.behaviour();
+    let d = Behaviour::default();
     let stay = Some(b.stay.round() as u32);
     section(
         k,
         "behaviour",
-        heading(k, "Behaviour"),
+        None,
         vec![
-            setting(k, "position", "Position", Some("The corner of the focused screen"), corner_picker(k, b.position, theirs.position)),
+            setting(k, "position", "Position", Some("The corner of the focused screen"), corner_picker(k, b.position, d.position)),
             setting(k, "stay", "Stay for", Some("When the app doesn't say. Critical ones stay until dismissed"), {
-                let theirs = theirs.stay;
-                choice(k, "stay-control", STAY, stay, 180.0, move |s, v| s.behave("stay", Value::Number(v as f64), v as f32 == theirs))
+                choice(k, "stay-control", STAY, stay, 180.0, move |s, v| s.behave("stay", Value::Number(v as f64), v as f32 == d.stay))
             }),
-            setting(k, "shown", "Show at most", None, {
-                let theirs = theirs.max_shown;
-                choice(k, "shown-control", SHOWN, Some(b.max_shown), 180.0, move |s, v| s.behave("show-at-most", Value::Number(v as f64), v == theirs))
+            setting(k, "shown", "Show at most", Some("The rest wait behind a \u{201c}more\u{201d} pill"), {
+                choice(k, "shown-control", SHOWN, Some(b.max_shown), 180.0, move |s, v| s.behave("show-at-most", Value::Number(v as f64), v == d.max_shown))
             }),
             toggle(k, "pause", "Pause while hovered", Some("Timers wait while the pointer is over a card"), b.pause_on_hover, move |s: &mut Ui| {
                 let v = !s.loaded.behaviour.pause_on_hover;
-                let theirs = s.loaded.base.behaviour().pause_on_hover;
-                s.behave("pause-on-hover", Value::Flag(v), v == theirs)
+                s.behave("pause-on-hover", Value::Flag(v), v == Behaviour::default().pause_on_hover)
             }),
             toggle(k, "dnd", "Do not disturb", Some("Only critical notifications and apps allowed to interrupt show"), b.do_not_disturb, move |s: &mut Ui| {
                 let v = !s.loaded.behaviour.do_not_disturb;
-                let theirs = s.loaded.base.behaviour().do_not_disturb;
-                s.behave("do-not-disturb", Value::Flag(v), v == theirs)
-            }),
-            setting(k, "appearance", "Appearance", None, {
-                let theirs = theirs.appearance;
-                choice(k, "appearance-control", APPEARANCE, Some(b.appearance), 300.0, move |s, v| {
-                    s.behave("appearance", Value::Text(v.word().into()), v == theirs)
-                })
+                s.behave("do-not-disturb", Value::Flag(v), v == Behaviour::default().do_not_disturb)
             }),
         ],
     )
 }
 
-/// One app's choices, kept as `rule app="…"` in config.kdl.
-fn app_row(s: &Ui, k: &Kit, i: usize, app: &str, rule: &AppRule) -> El {
-    let c = &k.c;
-    let mark = match s.icons.get(app).cloned().flatten() {
-        Some(img) => el().key("icon").size(22.0, 22.0).radius(6.0).pixels_fit(img.pixels(), rune::SurfaceFit::Fit),
+/// The app's icon, or its letter on its colour.
+fn app_mark(s: &Ui, k: &Kit, app: &str, size: f32) -> El {
+    match s.icons.get(app).cloned().flatten() {
+        Some(img) => el().key("icon").size(size, size).radius(size * 0.27).pixels_fit(img.pixels(), rune::SurfaceFit::Fit),
         None => el()
             .key("icon")
-            .size(22.0, 22.0)
-            .radius(6.0)
+            .size(size, size)
+            .radius(size * 0.27)
             .center()
             .fill(tint(app))
-            .child(text(app.chars().find(|c| c.is_alphanumeric()).unwrap_or('•').to_uppercase().to_string()).font(k.ty.small_medium).color(Color::WHITE)),
-    };
-    let name = app.to_owned();
-    let hide = rule.hide;
-    let head = row()
-        .key("head")
+            .child(
+                text(app.chars().find(|c| c.is_alphanumeric()).unwrap_or('•').to_uppercase().to_string())
+                    .font(rune::TextStyle { size: (size * 0.55).round(), ..k.ty.ui_medium }.lh(size))
+                    .color(Color::WHITE),
+            ),
+    }
+}
+
+fn app_rule(s: &Ui, app: &str) -> AppRule {
+    let (rules, _) = crate::config::app_rules(&s.loaded.own);
+    rules.into_iter().find(|(a, _)| a.eq_ignore_ascii_case(app)).map(|(_, r)| r).unwrap_or_default()
+}
+
+/// What an app's rule says, in a few words.
+fn app_summary(rule: &AppRule) -> String {
+    if rule.hide {
+        return "Muted".into();
+    }
+    let mut parts = Vec::new();
+    match rule.stay {
+        Some(s) if s <= 0.0 => parts.push("Pinned".to_owned()),
+        Some(s) => parts.push(format!("{} s", s.round())),
+        None => {}
+    }
+    if rule.interrupt {
+        parts.push("Interrupts".into());
+    }
+    if parts.is_empty() { "Default".into() } else { parts.join(" \u{b7} ") }
+}
+
+/// A note for rules the window can't show, with a way to them.
+fn rules_note(k: &Kit, line: String) -> El {
+    row()
+        .key("custom")
         .w_full()
+        .px(12.0)
+        .py(8.0)
         .gap(10.0)
         .center_y()
-        .child(mark)
-        .child(text(app.to_owned()).key("name").font(k.ty.ui_medium).color(if hide { c.text_faint } else { c.text_base }).grow(1.0).shrink().truncate())
-        .child(text(if hide { "Muted" } else { "Show" }).key("state").font(k.ty.small).color(c.text_muted))
-        .child(Switch::new(!hide).hide_label().on_toggle(move |s: &mut Ui| s.set_app(name.clone(), "hide", (!hide).then(Vec::new))).build(k));
-    let mut body = col().key(format!("app-{i}")).w_full().px(12.0).py(10.0).gap(10.0).child(head);
+        .child(text(line).key("line").font(k.ty.small).color(k.c.text_muted).wrap().grow(1.0).shrink().w(0.0))
+        .child(button(k, "edit-rules", "Edit config.kdl", |s| s.edit_config()))
+}
+
+fn apps(s: &Ui, k: &Kit) -> El {
+    let c = &k.c;
+    let (_, custom) = crate::config::app_rules(&s.loaded.own);
+    let mut rows: Vec<El> = s
+        .apps
+        .iter()
+        .enumerate()
+        .map(|(i, app)| {
+            let rule = app_rule(s, app);
+            let page = Page::App(app.clone());
+            row()
+                .key(format!("app-{i}"))
+                .role("button")
+                .label(app.clone())
+                .w_full()
+                .h(44.0)
+                .px(12.0)
+                .gap(10.0)
+                .center_y()
+                .radius(8.0)
+                .hover(c.hover)
+                .press(c.pressed)
+                .cursor(Cursor::Pointer)
+                .on_press(move |s: &mut Ui| s.page = page.clone())
+                .child(app_mark(s, k, app, 22.0))
+                .child(text(app.clone()).key("name").font(k.ty.ui).color(if rule.hide { c.text_faint } else { c.text_base }).grow(1.0).shrink().truncate())
+                .child(text(app_summary(&rule)).key("summary").font(k.ty.small).color(c.text_muted))
+                .child(rune::icon(&CHEVRON, 16.0).key("chevron").color(c.icon_faint))
+        })
+        .collect();
+    if rows.is_empty() {
+        rows.push(text("Apps show up here once they've sent a notification.").key("empty").font(k.ty.small).color(c.text_muted).px(12.0).py(12.0));
+    }
+    if custom > 0 {
+        rows.push(rules_note(k, format!("{custom} more rule{} in config.kdl match by text or urgency", if custom == 1 { "" } else { "s" })));
+    }
+    section(k, "apps", None, rows)
+}
+
+/// One app's choices, kept as `rule app="…"` in config.kdl.
+fn app_page(s: &Ui, k: &Kit, app: &str) -> Vec<El> {
+    let c = &k.c;
+    let rule = app_rule(s, app);
+    let hide = rule.hide;
+    let name = app.to_owned();
+    let mut rows = vec![toggle(k, "show", "Show notifications", None, !hide, move |s: &mut Ui| s.set_app(name.clone(), "hide", (!hide).then(Vec::new)))];
     if !hide {
         let stay = match rule.stay {
             None => 0,
@@ -537,99 +631,122 @@ fn app_row(s: &Ui, k: &Kit, i: usize, app: &str, rule: &AppRule) -> El {
             Some(s) => s.round() as u32,
         };
         let name = app.to_owned();
-        body = body.child(
-            row().key("stay").w_full().gap(10.0).center_y().pl(32.0).child(text("Stay").key("label").font(k.ty.small).color(c.text_muted).w(64.0)).child(choice(
-                k,
-                "stay-control",
-                APP_STAY,
-                Some(if APP_STAY.iter().any(|o| o.0 == stay) { stay } else { 0 }),
-                330.0,
-                move |s, v| {
-                    let value = match v {
-                        0 => None,
-                        u32::MAX => Some(vec![Value::Text("never".into())]),
-                        n => Some(vec![Value::Number(n as f64)]),
-                    };
-                    s.set_app(name.clone(), "timeout", value)
-                },
-            )),
-        );
+        rows.push(setting(k, "stay", "Stay for", Some("Pinned stays until dismissed"), {
+            let current = Some(if APP_STAY.iter().any(|o| o.0 == stay) { stay } else { 0 });
+            choice(k, "stay-control", APP_STAY, current, 280.0, move |s, v| {
+                let value = match v {
+                    0 => None,
+                    u32::MAX => Some(vec![Value::Text("never".into())]),
+                    n => Some(vec![Value::Number(n as f64)]),
+                };
+                s.set_app(name.clone(), "timeout", value)
+            })
+        }));
         let name = app.to_owned();
         let interrupt = rule.interrupt;
-        body = body.child(
-            row()
-                .key("interrupt")
-                .w_full()
-                .gap(10.0)
-                .center_y()
-                .pl(32.0)
-                .child(text("Show during Do not disturb").key("label").font(k.ty.small).color(c.text_muted).grow(1.0).shrink())
-                .child(Switch::new(interrupt).hide_label().on_toggle(move |s: &mut Ui| s.set_app(name.clone(), "interrupt", (!interrupt).then(Vec::new))).build(k)),
-        );
+        rows.push(toggle(k, "interrupt", "Show during Do not disturb", None, interrupt, move |s: &mut Ui| {
+            s.set_app(name.clone(), "interrupt", (!interrupt).then(Vec::new))
+        }));
     }
-    body
-}
-
-fn apps(s: &Ui, k: &Kit) -> El {
-    let c = &k.c;
-    let (rules, custom) = crate::config::app_rules(&s.loaded.own);
-    let mut rows: Vec<El> = s
-        .apps
-        .iter()
-        .enumerate()
-        .map(|(i, app)| {
-            let rule = rules.iter().find(|(a, _)| a.eq_ignore_ascii_case(app)).map(|(_, r)| r.clone()).unwrap_or_default();
-            app_row(s, k, i, app, &rule)
-        })
-        .collect();
-    if rows.is_empty() {
-        rows.push(text("Apps show up here once they've sent a notification.").key("empty").font(k.ty.small).color(c.text_muted).px(12.0).py(12.0));
+    // Rules that match more than one exact app name may apply too.
+    let others = s.loaded.own.rules.iter().filter(|r| crate::config::simple_app(r).is_none() && r.app.as_ref().is_none_or(|g| crate::theme::glob(g, app))).count();
+    if others > 0 {
+        rows.push(rules_note(k, format!("{others} more rule{} in config.kdl may apply to {app}", if others == 1 { "" } else { "s" })));
     }
-    if custom > 0 {
-        rows.push(
-            row()
-                .key("custom")
-                .w_full()
-                .px(12.0)
-                .py(8.0)
-                .gap(10.0)
-                .center_y()
-                .child(
-                    text(format!("{custom} more rule{} in config.kdl match by text or urgency", if custom == 1 { "" } else { "s" }))
-                        .key("line")
-                        .font(k.ty.small)
-                        .color(c.text_muted)
-                        .grow(1.0)
-                        .shrink()
-                        .w(0.0),
-                )
-                .child(button(k, "edit-rules", "Edit config.kdl", |s| s.edit_config())),
-        );
-    }
-    section(k, "apps", heading(k, "Apps"), rows)
-}
-
-fn sidebar(s: &Ui, k: &Kit) -> El {
-    let c = &k.c;
-    let mut content = col()
-        .key("content")
+    let head = row()
+        .key("app-head")
         .w_full()
-        .px(24.0)
-        .pt(24.0)
-        .pb(32.0)
-        .gap(24.0)
-        .child(
-            col()
-                .key("title")
-                .gap(4.0)
-                .child(text("Hokum").key("name").font(rune::TextStyle { size: 20.0, ..k.ty.ui_medium }.lh(24.0)).color(c.text_base))
-                .child(status(k, s)),
-        );
+        .gap(12.0)
+        .center_y()
+        .child(app_mark(s, k, app, 32.0))
+        .child(text(app.to_owned()).key("name").font(rune::TextStyle { size: 20.0, ..k.ty.ui_medium }.lh(24.0)).color(c.text_base).grow(1.0).shrink().truncate());
+    vec![head, section(k, "app", None, rows)]
+}
+
+/// The pages the navigation goes to.
+#[derive(Clone, PartialEq, Debug)]
+enum Page {
+    Appearance,
+    Behaviour,
+    Apps,
+    App(String),
+}
+
+static APPEARANCE_ICON: rune::Icon = rune::Icon {
+    name: "appearance",
+    view: 16.0,
+    body: r#"<circle cx="8" cy="8" r="5.5" stroke="currentColor"/><path d="M8 2.5A5.5 5.5 0 0 0 8 13.5Z" fill="currentColor"/>"#,
+};
+static BEHAVIOUR_ICON: rune::Icon = rune::Icon {
+    name: "behaviour",
+    view: 16.0,
+    body: r#"<path d="M4.5 10.5V7a3.5 3.5 0 0 1 7 0v3.5l1 1.5h-9l1-1.5Z" stroke="currentColor" stroke-linejoin="round"/><path d="M6.5 14h3" stroke="currentColor"/>"#,
+};
+static APPS_ICON: rune::Icon = rune::Icon {
+    name: "apps",
+    view: 16.0,
+    body: r#"<rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1" stroke="currentColor"/><rect x="9" y="2.5" width="4.5" height="4.5" rx="1" stroke="currentColor"/><rect x="2.5" y="9" width="4.5" height="4.5" rx="1" stroke="currentColor"/><rect x="9" y="9" width="4.5" height="4.5" rx="1" stroke="currentColor"/>"#,
+};
+static CHEVRON: rune::Icon = rune::Icon { name: "chevron", view: 16.0, body: r#"<path d="M6.5 4L10.5 8L6.5 12" stroke="currentColor"/>"# };
+static BACK: rune::Icon = rune::Icon { name: "back", view: 16.0, body: r#"<path d="M9.5 4L5.5 8L9.5 12" stroke="currentColor"/>"# };
+
+fn nav(s: &Ui, k: &Kit) -> El {
+    let c = &k.c;
+    let item = |key: &str, label: &str, icon: &'static rune::Icon, page: Page, on: bool| {
+        SidebarRow::new(label).icon(icon).selected(on).on_select(move |s: &mut Ui, _: &mut Tx| s.page = page.clone()).build(k).key(key.to_owned())
+    };
+    let title = text("Hokum").key("name").font(rune::TextStyle { size: 20.0, ..k.ty.ui_medium }.lh(24.0)).color(c.text_base).px(8.0).pt(20.0).pb(12.0);
+    let list = Sidebar::new()
+        .label("Settings")
+        .header(title)
+        .child(item("nav-appearance", "Appearance", &APPEARANCE_ICON, Page::Appearance, s.page == Page::Appearance))
+        .child(item("nav-behaviour", "Behaviour", &BEHAVIOUR_ICON, Page::Behaviour, s.page == Page::Behaviour))
+        .child(item("nav-apps", "Applications", &APPS_ICON, Page::Apps, matches!(s.page, Page::Apps | Page::App(_))))
+        .build(k);
+    row()
+        .key("nav")
+        .w(NAV)
+        .h_full()
+        .fill(c.bg_base)
+        .child(col().key("list").grow(1.0).w(0.0).h_full().px(4.0).child(list))
+        .child(el().key("edge").w(1.0).h_full().fill(c.border_muted))
+}
+
+fn content(s: &Ui, k: &Kit) -> El {
+    let c = &k.c;
+    let mut header = col().key("header").w_full().px(24.0).pt(20.0).pb(14.0).gap(8.0).child(status(k, s));
     if let Some(e) = &s.error {
-        content = content.child(text(e.clone()).key("error").font(k.ty.small).color(c.danger.fg).wrap().w_full());
+        header = header.child(text(e.clone()).key("error").font(k.ty.small).color(c.danger.fg).wrap().w_full());
     }
-    content = content.child(themes(s, k)).child(own_theme(s, k)).child(behaviour(s, k)).child(apps(s, k));
-    col().key("sidebar").w(SIDEBAR).h_full().fill(c.page).scroll(ScrollSpec { stick_bottom: false }).clip_fade(0.0, 0.0, 0.0, 16.0).child(content)
+    for (i, p) in s.loaded.problems.iter().take(6).enumerate() {
+        header = header.child(text(p.to_string()).key(format!("problem-{i}")).font(k.ty.small.mono()).color(c.danger.fg).wrap().w_full().selectable(true));
+    }
+    let page_title = |t: &str| text(t.to_owned()).key("title").font(rune::TextStyle { size: 20.0, ..k.ty.ui_medium }.lh(24.0)).color(c.text_base);
+    let (key, body): (&str, Vec<El>) = match &s.page {
+        Page::Appearance => ("appearance", vec![page_title("Appearance"), themes(s, k), own_theme(s, k), files(s, k)]),
+        Page::Behaviour => ("behaviour", vec![page_title("Behaviour"), behaviour(s, k)]),
+        Page::Apps => ("apps", vec![page_title("Applications"), apps(s, k)]),
+        Page::App(app) => {
+            let back = Button::new("Applications")
+                .icon(&BACK)
+                .variant(ButtonVariant::GhostMuted)
+                .control_size(ControlSize::Regular)
+                .on_press(|s: &mut Ui| s.page = Page::Apps)
+                .build(k)
+                .key("back")
+                .ml(-8.0);
+            ("app", std::iter::once(back).chain(app_page(s, k, app)).collect())
+        }
+    };
+    let page = col().key(format!("page-{key}")).w_full().px(24.0).pt(20.0).pb(32.0).gap(20.0).children(body);
+    col()
+        .key("content")
+        .w(CONTENT)
+        .h_full()
+        .fill(c.page)
+        .child(header)
+        .child(el().key("rule").w_full().h(1.0).fill(c.border_muted))
+        .child(col().key(format!("scroll-{key}")).w_full().grow(1.0).h(0.0).scroll(ScrollSpec { stick_bottom: false }).clip_fade(0.0, 0.0, 0.0, 16.0).child(page))
 }
 
 fn preview(s: &Ui, k: &Kit, window: &Kit) -> El {
@@ -659,7 +776,7 @@ fn preview(s: &Ui, k: &Kit, window: &Kit) -> El {
 
 fn view(s: &Ui, cx: &mut Cx<Ui>) -> El {
     let (window, preview_kit) = kit(s, cx);
-    row().key("window").w_full().h_full().fill(window.c.page).child(sidebar(s, window)).child(preview(s, preview_kit, window))
+    row().key("window").w_full().h_full().fill(window.c.page).child(nav(s, window)).child(content(s, window)).child(preview(s, preview_kit, window))
 }
 
 fn tile_note() -> Note {
@@ -680,6 +797,7 @@ pub fn init() -> Ui {
         error: None,
         script: ScriptStatus::None,
         copied: false,
+        page: Page::Appearance,
         gallery: Vec::new(),
         apps: Vec::new(),
         icons: HashMap::new(),
@@ -737,13 +855,29 @@ fn scene_other(s: &mut Ui) {
     decode_now(s);
 }
 
+fn scene_behaviour(s: &mut Ui) {
+    scene_hokum(s);
+    s.page = Page::Behaviour;
+}
+
+fn scene_applications(s: &mut Ui) {
+    scene_hokum(s);
+    s.page = Page::Apps;
+}
+
+/// The first app's page (Slack when none has sent anything yet).
+fn scene_app(s: &mut Ui) {
+    scene_hokum(s);
+    s.page = Page::App(s.apps.first().cloned().unwrap_or_else(|| "Slack".into()));
+}
+
 fn setup(s: &mut Ui, waker: rune::Waker) {
     decode(s, rune::ImageCache::new(waker), false);
 }
 
 pub fn spec() -> AppSpec<Ui> {
     AppSpec {
-        scenes: &[("hokum", scene_hokum), ("other", scene_other)],
+        scenes: &[("hokum", scene_hokum), ("other", scene_other), ("behaviour", scene_behaviour), ("applications", scene_applications), ("app", scene_app)],
         fonts: rune_theme_opencode::FONTS,
         families: rune_theme_opencode::FAMILIES,
         setup: Some(setup),

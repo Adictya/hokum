@@ -52,9 +52,12 @@ fn text() -> String {
 }
 
 pub fn load() -> Loaded {
-    let src = text();
+    load_src(&text())
+}
+
+fn load_src(src: &str) -> Loaded {
     let mut problems = Vec::new();
-    let own = match crate::theme::parse(&src, "config") {
+    let own = match crate::theme::parse_config(src) {
         Ok(t) => t,
         Err(p) => {
             problems.extend(p);
@@ -72,8 +75,48 @@ pub fn load() -> Loaded {
     let mut theme = base.merge(&own);
     theme.id = base.id.clone();
     theme.name = base.name.clone();
-    let behaviour = theme.behaviour();
+    problems.extend(crate::theme::missing_templates(&own.rules, &theme));
+    let behaviour = own.behaviour();
     Loaded { base_id, base, own, theme, behaviour, problems }
+}
+
+/// `hokum check [path]`: loads the config (or `path`, a config or theme file) the way the
+/// service does, prints its problems to stderr and says whether there were none.
+pub fn check(file: Option<&str>) -> bool {
+    let (shown, problems, what) = match file {
+        None => {
+            let l = load();
+            let mut problems: Vec<(String, Problem)> = l.problems.into_iter().map(|p| (path().display().to_string(), p)).collect();
+            let script = crate::script::path();
+            if let Ok(src) = std::fs::read_to_string(&script)
+                && let Err(e) = crate::script::Script::compile(&src)
+            {
+                problems.push((script.display().to_string(), Problem { line: 0, message: e }));
+            }
+            (path().display().to_string(), problems, format!("theme \"{}\"", l.base_id))
+        }
+        Some(f) if std::path::Path::new(f).file_name().is_some_and(|n| n == "config.kdl") => match std::fs::read_to_string(f) {
+            Ok(src) => {
+                let l = load_src(&src);
+                (f.to_owned(), l.problems.into_iter().map(|p| (f.to_owned(), p)).collect(), format!("theme \"{}\"", l.base_id))
+            }
+            Err(e) => (f.to_owned(), vec![(f.to_owned(), Problem { line: 0, message: e.to_string() })], String::new()),
+        },
+        Some(f) => {
+            let abs = std::path::absolute(f).unwrap_or_else(|_| f.into());
+            match crate::theme::resolve(&abs.to_string_lossy()) {
+                Ok(t) => (f.to_owned(), Vec::new(), format!("theme \"{}\"", t.name)),
+                Err(p) => (f.to_owned(), p.into_iter().map(|p| (f.to_owned(), p)).collect(), String::new()),
+            }
+        }
+    };
+    for (file, p) in &problems {
+        if p.line == 0 { eprintln!("{file}: {}", p.message) } else { eprintln!("{file}: {p}") }
+    }
+    if problems.is_empty() {
+        println!("{shown}: OK ({what})");
+    }
+    problems.is_empty()
 }
 
 /// settings.json, from before config.kdl, written out as a config once (and set aside).
@@ -459,7 +502,7 @@ mod tests {
 
     #[test]
     fn the_default_is_capsule_with_app_icons() {
-        let own = crate::theme::parse(DEFAULT, "config").unwrap();
+        let own = crate::theme::parse_config(DEFAULT).unwrap();
         assert_eq!(own.base.as_deref(), Some("capsule"));
         let t = crate::theme::resolve("").unwrap();
         assert_eq!(t.id, "capsule");
@@ -482,7 +525,7 @@ mod tests {
         e.remove_behaviour("show-at-most");
         assert!(!e.text().contains("behaviour"), "an empty block goes: {}", e.text());
         assert!(e.text().contains("radius 10 // rounder"), "tokens are the file's: {}", e.text());
-        crate::theme::parse(&e.text(), "x").unwrap();
+        crate::theme::parse_config(&e.text()).unwrap();
     }
 
     #[test]
@@ -492,7 +535,7 @@ mod tests {
         e.set_app("Slack", "timeout", Some(vec![Value::Number(3.0)]));
         e.set_app("Slack", "interrupt", Some(vec![]));
         assert!(e.text().contains("rule app=\"Slack\" {\n    timeout 3\n    interrupt\n}"), "new rules read like hand-written ones:\n{}", e.text());
-        let t = crate::theme::parse(&e.text(), "x").unwrap_or_else(|p| panic!("{p:?}\n{}", e.text()));
+        let t = crate::theme::parse_config(&e.text()).unwrap_or_else(|p| panic!("{p:?}\n{}", e.text()));
         let (apps, custom) = app_rules(&t);
         assert_eq!(custom, 1, "the glob rule isn't the window's");
         assert_eq!(apps.iter().map(|a| a.0.as_str()).collect::<Vec<_>>(), ["Spotify", "Slack"]);
@@ -511,7 +554,7 @@ mod tests {
         e.set_app("Slack", "timeout", None);
         assert_eq!(e.text(), src);
         e.set_app("Slack", "hide", Some(vec![]));
-        let t = crate::theme::parse(&e.text(), "x").unwrap();
+        let t = crate::theme::parse_config(&e.text()).unwrap();
         assert!(t.rules[0].hide && t.rules[0].template.as_deref() == Some("card") && t.rules[0].tokens != Default::default());
     }
 }

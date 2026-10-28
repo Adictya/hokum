@@ -3,6 +3,7 @@
 //! ```sh
 //! hokum                     # show the settings window (starting Hokum if it isn't running)
 //! hokum service [--replace] # run Hokum in the background (what hokum.service starts)
+//! hokum check [path]        # report problems in config.kdl (or a theme or config file)
 //! hokum --version
 //! hokum --snap /tmp/settings.png --scene hokum            # headless settings, no D-Bus
 //! hokum service --snap /tmp/cards.png --scene demo        # headless cards, no D-Bus
@@ -28,10 +29,12 @@ mod watch;
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
-const HELP: &str = "usage: hokum [service [--replace]] [--version] [--help]
+const HELP: &str = "usage: hokum [service [--replace] | check [path]] [--version] [--help]
   hokum                  show the settings window (starts Hokum if needed)
   hokum service          run Hokum in the background (what hokum.service starts)
     --replace            take org.freedesktop.Notifications from another daemon
+  hokum check [path]     load config.kdl (or a theme or config file) as Hokum would and
+                         print its problems; exits non-zero if there are any
   --version              print the version
 Rune's tooling flags (--snap, --scene, --size, --theme, ...) render headless.";
 
@@ -44,6 +47,9 @@ fn main() {
     if argv.iter().any(|a| a == "--help" || a == "-h") {
         println!("{HELP}");
         return;
+    }
+    if argv.first().is_some_and(|a| a == "check") {
+        std::process::exit(if config::check(argv.get(1).map(String::as_str)) { 0 } else { 1 });
     }
     let headless = argv.iter().any(|a| {
         matches!(a.as_str(), "--snap" | "--tree" | "--trace" | "--frames" | "--strip" | "--list-scenes" | "--first-pixels")
