@@ -141,26 +141,74 @@ h1, h2, h3 { text-wrap: balance; }
 .intro { width: min(100% - 40px, 760px); margin: 0 auto; padding: 44px 0 0; text-align: center; }
 .intro h1 { margin: 0; font-size: clamp(28px, 3.6vw, 44px); line-height: 1.1; letter-spacing: -0.035em; font-weight: 650; }
 .lede { margin: 14px auto 0; max-width: 40em; color: var(--muted); font-size: 16.5px; line-height: 1.55; text-wrap: pretty; }
-.cta { margin-top: 26px; display: flex; flex-direction: column; align-items: center; }
-.cta input { position: absolute; opacity: 0; pointer-events: none; }
-.panel { display: none; flex-direction: column; align-items: center; gap: 12px; }
-#p-arch:checked ~ #panel-arch, #p-debian:checked ~ #panel-debian, #p-fedora:checked ~ #panel-fedora, #p-binary:checked ~ #panel-binary { display: flex; }
-#p-arch:checked ~ .platforms [for="p-arch"], #p-debian:checked ~ .platforms [for="p-debian"],
-#p-fedora:checked ~ .platforms [for="p-fedora"], #p-binary:checked ~ .platforms [for="p-binary"] { color: var(--fg); background: var(--raised-2); }
-.cta input:focus-visible ~ .platforms { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 10px; }
-.command { display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 18px; border-radius: 14px; background: var(--fg); color: #0c0c0f; box-shadow: 0 12px 40px rgb(0 0 0 / 0.35); }
-.command code { font: 500 16px/1 var(--mono); background: none; padding: 0; white-space: nowrap; }
-.command code::before { content: "$ "; opacity: 0.4; }
-.command button { height: 36px; padding: 0 14px; border-radius: 10px; background: rgb(0 0 0 / 0.07); font-size: 13px; font-weight: 600; }
-.command button:hover { background: rgb(0 0 0 / 0.12); }
-.download { display: grid; grid-template-columns: auto 18px; justify-content: center; align-items: center; gap: 10px; min-width: 230px; height: 50px; padding: 0 18px; border-radius: 14px; background: var(--fg); color: #0c0c0f; font-size: 15px; font-weight: 600; box-shadow: 0 12px 40px rgb(0 0 0 / 0.35); transition: transform 0.15s; }
-.download:hover { transform: translateY(-1px); }
-.cta-note { margin: 0; font-size: 13.5px; color: var(--muted); }
-.cta-note a { color: var(--fg); border-bottom: 1px solid var(--line-strong); }
-.cta-note code { font-size: 12.5px; }
-.platforms { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px; margin-top: 16px; padding: 3px; border-radius: 10px; }
-.platforms label { padding: 5px 11px; border-radius: 8px; font-size: 13px; font-weight: 500; color: var(--faint); cursor: pointer; }
-.platforms label:hover { color: var(--fg); }
+/* The install terminal: platform tabs in the title bar, two commands, the downloads underneath.
+   Radios carry the state, so it switches without JavaScript. */
+.sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+.tty {
+  --t-bg: #0c0c10;
+  --t-dim: #7a7a84;
+  position: relative; max-width: 680px; margin: 30px auto 0; text-align: left;
+  border-radius: 14px; background: var(--t-bg);
+  box-shadow: 0 0 0 1px var(--line-strong), inset 0 1px 0 rgb(255 255 255 / 0.05), 0 30px 80px -24px rgb(0 0 0 / 0.7), 0 24px 70px -40px rgb(80 70 200 / 0.3);
+}
+.tty-bar { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; height: 46px; padding: 0 14px; border-bottom: 1px solid var(--line); border-radius: 14px 14px 0 0; background: rgb(255 255 255 / 0.022); }
+.tty-dots { display: flex; gap: 7px; }
+.tty-dots i { width: 10px; height: 10px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.13); }
+.tty-version { justify-self: end; font: 500 11.5px/1 var(--mono); color: var(--faint); letter-spacing: 0.02em; }
+
+/* Segmented controls: the platforms, and the CPU in the footer. */
+.tty-seg { display: flex; padding: 3px; gap: 2px; border-radius: 9px; background: rgb(255 255 255 / 0.035); box-shadow: inset 0 0 0 1px var(--line); }
+.tty-seg label { display: grid; place-items: center; height: 26px; padding: 0 11px; border-radius: 6px; font-size: 12.5px; font-weight: 500; letter-spacing: -0.003em; color: var(--t-dim); white-space: nowrap; cursor: pointer; user-select: none; -webkit-user-select: none; transition: color 0.15s, background-color 0.15s; }
+.tty-seg label:hover { color: var(--fg); }
+.tty-tabs .short { display: none; }
+.tty-cpu label { height: 22px; padding: 0 9px; font: 500 11.5px/1 var(--mono); }
+#p-arch:checked ~ .tty-bar [for="p-arch"], #p-debian:checked ~ .tty-bar [for="p-debian"],
+#p-fedora:checked ~ .tty-bar [for="p-fedora"], #p-binary:checked ~ .tty-bar [for="p-binary"],
+.cpu-pick[value="x64"]:checked ~ .tty-foot .x64, .cpu-pick[value="arm64"]:checked ~ .tty-foot .arm64 {
+  color: var(--fg); background: rgb(255 255 255 / 0.09); box-shadow: 0 0 0 1px rgb(255 255 255 / 0.06), 0 1px 2px rgb(0 0 0 / 0.4);
+}
+#p-arch:focus-visible ~ .tty-bar [for="p-arch"], #p-debian:focus-visible ~ .tty-bar [for="p-debian"],
+#p-fedora:focus-visible ~ .tty-bar [for="p-fedora"], #p-binary:focus-visible ~ .tty-bar [for="p-binary"],
+.cpu-pick[value="x64"]:focus-visible ~ .tty-foot .x64, .cpu-pick[value="arm64"]:focus-visible ~ .tty-foot .arm64 { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.tty-panel { display: none; }
+#p-arch:checked ~ #panel-arch, #p-debian:checked ~ #panel-debian, #p-fedora:checked ~ #panel-fedora, #p-binary:checked ~ #panel-binary { display: block; }
+.cpu-pick[value="x64"]:checked ~ * .cpu-arm64, .cpu-pick[value="arm64"]:checked ~ * .cpu-x64 { display: none; }
+
+/* Lines: a dimmed comment, then the command with its copy button. Long commands wrap under
+   themselves, after the prompt. */
+.tty-body { padding: 14px 10px 16px; font: 13.5px/1.7 var(--mono); }
+.tty-note { margin: 0; padding: 0 12px; color: var(--t-dim); opacity: 0.85; font-size: 12.5px; user-select: none; -webkit-user-select: none; }
+.tty-note:not(:first-child) { margin-top: 10px; }
+.tty-line { position: relative; display: grid; grid-template-columns: 1fr 32px; align-items: start; gap: 8px; padding: 3px 4px 3px 12px; border-radius: 8px; transition: background-color 0.15s; }
+.tty-line:hover, .tty-line:focus-within { background: rgb(255 255 255 / 0.035); }
+.tty-line code { display: block; padding: 0 0 0 2ch; text-indent: -2ch; background: none; border-radius: 0; font-size: inherit; color: #d8d8de; white-space: pre-wrap; overflow-wrap: anywhere; }
+.tty-line code::before { content: "$ "; color: var(--faint); }
+.t-cmd { color: var(--fg); font-weight: 500; }
+.t-flag { color: #a3a3ad; }
+.t-url, .t-path { color: #b7c3ff; }
+.t-op { color: var(--faint); }
+.tty-copy { position: relative; display: grid; place-items: center; width: 32px; height: 28px; margin-top: -2px; border-radius: 7px; color: var(--faint); transition: color 0.15s, background-color 0.15s; }
+.tty-copy[hidden] { display: grid; visibility: hidden; }
+.tty-line:hover .tty-copy, .tty-copy:focus-visible { color: var(--muted); }
+.tty-copy:hover { color: var(--fg); background: rgb(255 255 255 / 0.07); }
+.tty-copy:focus-visible { outline-offset: 0; border-radius: 7px; }
+.tty-copy svg { grid-area: 1 / 1; width: 15px; height: 15px; transition: opacity 0.15s, transform 0.2s; }
+.tty-copy .i-done { opacity: 0; transform: scale(0.6); color: #7ddba3; }
+.tty-copy.done .i-copy { opacity: 0; transform: scale(0.6); }
+.tty-copy.done .i-done { opacity: 1; transform: none; }
+.tty-copy::after { content: "Copied"; position: absolute; right: 0; bottom: calc(100% + 6px); padding: 3px 8px; border-radius: 6px; background: #1d1d23; box-shadow: 0 0 0 1px var(--line-strong); font: 500 11.5px/1.4 var(--sans); color: var(--fg); white-space: nowrap; opacity: 0; transform: translateY(3px); transition: opacity 0.15s, transform 0.15s; pointer-events: none; }
+.tty-copy.done::after, .tty-copy.failed::after { opacity: 1; transform: none; }
+.tty-copy.failed::after { content: "Select and copy"; }
+
+/* Footer: where the package comes from, or the CPU, and direct downloads. */
+.tty-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; padding: 7px 12px 7px 14px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--t-dim); }
+.tty-meta { font: 500 11.5px/1 var(--mono); padding-left: 8px; }
+.tty-meta b { margin-left: 6px; font-weight: 500; color: var(--muted); }
+.tty-links { display: flex; flex-wrap: nowrap; justify-content: flex-end; gap: 2px 4px; }
+.tty-links a { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 8px; border-radius: 6px; font-weight: 500; color: var(--muted); transition: color 0.15s, background-color 0.15s; }
+.tty-links a:hover { color: var(--fg); background: rgb(255 255 255 / 0.06); }
+.tty-links svg { width: 11px; height: 11px; opacity: 0.7; }
 
 /* ---- Feature clips: live mini desktops (clips.js) ---- */
 .clips { width: var(--page); margin: 112px auto 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; }
@@ -279,7 +327,17 @@ td code { white-space: nowrap; }
   .intro { padding-top: 28px; }
   .intro h1 { font-size: 27px; }
   .lede { font-size: 15px; }
-  .command code { font-size: 15px; }
+  .tty { margin-top: 24px; border-radius: 12px; }
+  .tty-bar { grid-template-columns: 1fr; height: auto; padding: 8px; border-radius: 12px 12px 0 0; }
+  .tty-dots, .tty-version { display: none; }
+  .tty-tabs label { flex: 1; padding: 0 6px; height: 30px; }
+  .tty-tabs .long { display: none; }
+  .tty-tabs .short { display: inline; }
+  .tty-body { padding: 12px 6px 14px; font-size: 13px; }
+  .tty-note { padding: 0 10px; font-size: 12px; }
+  .tty-line { padding-left: 10px; }
+  .tty-copy { width: 36px; height: 32px; margin-top: -4px; color: var(--muted); }
+  .tty-foot { padding-left: 10px; }
   .clips { grid-template-columns: 1fr; margin-top: 80px; }
   .clip-screen { height: 250px; }
   .clip-stack { zoom: 0.8; }
