@@ -440,7 +440,7 @@ hokum check                    # ~/.config/hokum/config.kdl, its theme and scrip
 hokum check path/to/config.kdl # another config
 ```
 
-A problem reads `ember.kdl: line 7: unknown token `colour``; a clean file prints
+A problem reads ``ember.kdl: line 7: unknown token `colour` ``; a clean file prints
 `ember.kdl: OK (theme "Ember")`.
 
 Fix everything it reports before looking at pictures. Then render: Hokum renders headlessly
