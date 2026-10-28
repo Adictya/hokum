@@ -22,6 +22,9 @@ pub enum Timeout {
 
 pub struct Note {
     pub id: u32,
+    /// The card this note draws into. A note that replaces another keeps its card, so the
+    /// update lands in place instead of one card leaving and another arriving.
+    pub slot: u32,
     pub app: String,
     /// Where in the app it came from (a Slack channel), shown after the app's name.
     pub context: Option<String>,
@@ -56,6 +59,7 @@ impl Note {
     pub fn new(id: u32, app: impl Into<String>, summary: impl Into<String>, body: impl Into<String>) -> Note {
         Note {
             id,
+            slot: id,
             app: app.into(),
             context: None,
             summary: summary.into(),
@@ -126,9 +130,10 @@ pub fn card<S: Cards>(n: &Note, theme: &Theme, k: &Kit, from_right: bool) -> El 
     let accent = t.accent.resolve(k, tint);
     let cx = Ctx { n, t, k, accent };
     let id = n.id;
+    let slot = n.slot;
     let [pl, pt, pr, pb] = t.padding;
     let mut root = col()
-        .key(format!("note-{id}"))
+        .key(format!("note-{slot}"))
         .role("status")
         .label(n.summary.clone())
         .w_full()

@@ -169,11 +169,16 @@ impl Ui {
         let same = |o: &Note| o.id == n.id || (n.tag.is_some() && o.tag == n.tag && o.app == n.app);
         if let Some(i) = self.notes.iter().position(same) {
             let old = self.notes[i].id;
+            n.slot = self.notes[i].slot;
             if old != n.id {
                 let _ = self.out.send(Out::Closed(old, Reason::Closed));
             }
             self.notes[i] = n;
         } else {
+            // An id reused after its card was taken over by a tagged update needs a card of its own.
+            if self.notes.iter().any(|o| o.slot == n.slot) {
+                n.slot = u32::MAX - n.id;
+            }
             self.notes.insert(0, n);
         }
         if !self.shown
@@ -523,5 +528,43 @@ mod tests {
         ui.activate(7);
         let out: Vec<Out> = rx.try_iter().collect();
         assert_eq!(out, vec![Out::Closed(7, Reason::Dismissed)]);
+    }
+
+    fn volume(id: u32, value: f32) -> Note {
+        let mut n = Note::new(id, "pamixer", format!("Volume [{}%]", (value * 100.0) as u32), "");
+        n.value = Some(value);
+        n.tag = Some("volume".into());
+        n
+    }
+
+    #[test]
+    fn a_tagged_update_keeps_the_card_in_place() {
+        let (mut ui, rx) = ui();
+        ui.upsert(volume(1, 0.4));
+        ui.upsert(Note::new(2, "Slack", "Dax", "ship it"));
+        ui.upsert(volume(3, 0.45));
+        let notes: Vec<(u32, u32, Option<f32>)> = ui.notes.iter().map(|n| (n.id, n.slot, n.value)).collect();
+        assert_eq!(notes, vec![(2, 2, None), (3, 1, Some(0.45))]);
+        assert_eq!(rx.try_iter().collect::<Vec<_>>(), vec![Out::Closed(1, Reason::Closed)]);
+    }
+
+    #[test]
+    fn replaces_id_keeps_the_card_and_restarts_its_timer() {
+        let (mut ui, _rx) = ui();
+        ui.upsert(volume(5, 0.2));
+        let first = ui.notes[0].deadline.unwrap();
+        ui.upsert(volume(5, 0.3));
+        assert_eq!(ui.notes.len(), 1);
+        assert_eq!((ui.notes[0].slot, ui.notes[0].value), (5, Some(0.3)));
+        assert!(ui.notes[0].deadline.unwrap() >= first);
+    }
+
+    #[test]
+    fn an_update_after_its_card_left_enters_fresh() {
+        let (mut ui, _rx) = ui();
+        ui.upsert(volume(1, 0.4));
+        ui.close(1, Reason::Expired);
+        ui.upsert(volume(2, 0.5));
+        assert_eq!((ui.notes[0].id, ui.notes[0].slot), (2, 2));
     }
 }
