@@ -8,7 +8,8 @@
 window.STORY_TRUNK = [
   // I. The $40
   { at: 0.9, app: "Calendar", title: "Dentist", body: "Tue, Mar 17 · 9:00 AM · Dr. Okafor", time: "2026-03-09T08:02" },
-  { at: 3.1, app: "Venmo", title: "Gary requested $40", body: "for the thing 🍕", time: "2026-03-09T12:41", actions: ["Pay", "Decline"] },
+  // The visitor's choice: the story waits here until they press Pay or Decline (hero.js).
+  { at: 3.1, app: "Venmo", title: "Gary requested $40", body: "for the thing 🍕", time: "2026-03-09T12:41", actions: ["Pay", "Decline"], choice: true },
   { at: 5.2, app: "Venmo", title: "You declined Gary's request", body: "$40 · for the thing 🍕", time: "2026-03-09T12:42" },
   { at: 6.8, app: "Messages", title: "Gary", body: "u DECLINED?? it was ur pizza", time: "2026-03-09T12:44", avatar: "G" },
   { at: 8.1, app: "Messages", title: "Gary", body: "i watched u eat 6 slices", time: "2026-03-09T12:44", avatar: "G" },
@@ -173,5 +174,14 @@ window.STORY_BRANCHES = {
     { ...G, at: 42.6, body: "can't believe u didn't invite me", time: "2028-10-13T23:58" },
   ] },
 }
+// The secret ending: the visitor pays Gary. `at` counts from the moment they press Pay.
+window.STORY_PAY = [
+  { at: 0.5, app: "Venmo", title: "You paid Gary $40", body: "for the thing 🍕", time: "2026-03-09T12:42" },
+  { at: 2.2, app: "Messages", title: "Gary", body: "thx 🙏", time: "2026-03-09T12:43", avatar: "G" },
+  { at: 3.8, app: "Messages", title: "Gary", body: "same time next week?", time: "2026-03-09T12:44", avatar: "G" },
+  { at: 5.6, app: "Calendar", title: "Pizza with Gary 🍕", body: "Sat, Mar 14 · 7:00 PM · his place", time: "2026-03-09T12:46" },
+  { at: 10.6, app: "Calendar", title: "Dentist", body: "Tue, Mar 17 · 9:00 AM · Dr. Okafor", time: "2026-03-17T08:00", final: true },
+]
+
 // The stack clears this long before the final card, which then arrives alone and stays.
 window.QUIET = 3.4

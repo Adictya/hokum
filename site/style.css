@@ -109,6 +109,16 @@ h1, h2, h3 { text-wrap: balance; font-weight: 400; }
 .desk { position: relative; height: 512px; }
 .stack { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
 .clock { position: absolute; top: 0; left: 0; right: 0; height: 22px; padding: 0 2px; display: flex; justify-content: flex-end; font: 12px/22px var(--mono); color: #5a5652; font-variant-numeric: tabular-nums; white-space: pre; border-bottom: 1px solid #141414; }
+.sound { position: absolute; z-index: 4; top: 0; left: 2px; height: 22px; font: 12px/22px var(--mono); color: #5a5652; transition: color 0.2s; }
+.sound:hover, .sound:focus-visible { color: var(--fg); }
+/* Gary's request, waiting for an answer: the buttons breathe. */
+.card.choosing .actions button { animation: ask 1.6s ease-in-out infinite; }
+.card.choosing .actions button:last-child { animation-delay: 0.8s; }
+@keyframes ask { 50% { background: rgb(255 255 255 / 0.2); color: var(--text); } }
+@media (prefers-reduced-motion: reduce) { .card.choosing .actions button { animation: none; outline: 1px solid rgb(255 255 255 / 0.25); } }
+.card .actions button.picked { background: rgb(255 255 255 / 0.24); color: var(--text); }
+.card .actions button:disabled { cursor: default; }
+
 /* Nothing while the story plays; Replay once it has ended. */
 .replay { position: absolute; z-index: 4; right: 2px; bottom: 0; font: 12px/1 var(--mono); color: #5a5652; opacity: 0; visibility: hidden; transition: opacity 0.6s, color 0.2s; }
 .desk.over .replay { opacity: 1; visibility: visible; }
@@ -150,6 +160,14 @@ h1, h2, h3 { text-wrap: balance; font-weight: 400; }
 /* The one picture: the settings window. */
 .shot { width: var(--wrap); margin: 24px auto 0; }
 .shot img { display: block; width: 100%; height: auto; border-radius: 12px; border: 1px solid #1c1c1c; background: #0a0a0a; }
+
+/* ---- Moments (fx.js): fixed layers that are invisible until something happens ---- */
+.fx { position: fixed; inset: 0; pointer-events: none; opacity: 0; }
+.fx-canvas { z-index: 30; opacity: 1; width: 100vw; height: 100vh; }
+.fx-red { z-index: 25; background: radial-gradient(70% 90% at 0% 30%, rgb(255 40 60 / 0.5), transparent 70%); }
+.fx-blue { z-index: 25; background: radial-gradient(70% 90% at 100% 30%, rgb(40 100 255 / 0.5), transparent 70%); }
+.fx-dim { z-index: 25; background: rgb(0 0 0 / 0.85); }
+.fx-vignette { z-index: 25; background: radial-gradient(circle 380px at var(--x, 75%) var(--y, 20%), transparent 40%, rgb(0 0 0 / 0.72)); }
 
 /* ---- Footer: opentunnel's, exactly. The Anomaly copyright, as on the opencode console: the
    signature sits faintly behind the line, both centred. ---- */

@@ -173,7 +173,7 @@ This is ${origin}, the whole site as one markdown document: installing and using
 configuration reference, the complete guide to writing a theme, and the source of every
 built-in theme. Browsers get the same page as HTML, which opens on a crime story told entirely
 in notification cards, stacking up in the corner of a desktop, with one of four endings picked at
-random. Below the story is one picture of the settings window, where you pick a theme. If you are a coding agent asked to make a
+random. It opens on Gary's $40 Venmo request and waits for the visitor to press Pay or Decline (Decline is the story; Pay is a short happy ending). Below the story is one picture of the settings window, where you pick a theme. If you are a coding agent asked to make a
 Hokum theme, read [Writing a theme](#${anchors.get("themes#")}) and
 [Checking your work](#${anchors.get("themes#checking-your-work")}), then write the theme file
 and set \`theme "<id>"\` in the user's config.
@@ -299,6 +299,7 @@ const html = `<!doctype html>
     </section>
     <div class="desk" id="desk">
       <div class="clock" id="clock" aria-hidden="true"></div>
+      <button class="sound" id="sound" type="button" aria-pressed="true">sound on</button>
       <div class="stack" id="stack" aria-live="polite" aria-label="Notifications"></div>
       <button id="replay" class="replay" type="button">replay</button>
     </div>
@@ -313,7 +314,9 @@ const html = `<!doctype html>
   </div>
 </footer>
 <script src="/story.js"></script>
+<script src="/sound.js"></script>
 <script src="/hero.js"></script>
+<script src="/fx.js"></script>
 <script src="/site.js"></script>
 </body>
 </html>
@@ -327,5 +330,5 @@ writeFileSync(join(dist, "favicon.svg"), favicon)
 cpSync(join(site, "style.css"), join(dist, "style.css"))
 cpSync(join(site, "assets"), join(dist, "assets"), { recursive: true })
 cpSync(join(site, "_headers"), join(dist, "_headers"))
-for (const f of ["story.js", "hero.js", "site.js"]) cpSync(join(site, f), join(dist, f))
+for (const f of ["story.js", "sound.js", "hero.js", "fx.js", "site.js"]) cpSync(join(site, f), join(dist, f))
 console.log(`built ${dist}: ${themes.length} themes, ${features.length} features, ${installTabs.length} install tabs, ${markdown.length} bytes of markdown`)

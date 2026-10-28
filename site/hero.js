@@ -1,10 +1,13 @@
 ;(() => {
   // The trunk, then one of the branches: random per visit, a different one on each replay,
-  // or the one `?branch=` names (1–4 or its key).
+  // or the one `?branch=` names (1–4 or its key). `?branch=pay` takes the secret ending: the
+  // visitor pays Gary at the opening choice.
   const TRUNK = window.STORY_TRUNK
   const BRANCHES = window.STORY_BRANCHES
   const KEYS = Object.keys(BRANCHES)
   let STORY, FINAL, START, branch
+  const PAY = new URLSearchParams(location.search).get("branch") === "pay"
+  const sound = window.hokumSound
   const seen = new Set()
   function choose(avoid) {
     const asked = new URLSearchParams(location.search).get("branch")
@@ -21,11 +24,14 @@
     seen.add(key)
     const base = TRUNK[TRUNK.length - 1].at
     STORY = [...TRUNK, ...BRANCHES[key].cards.map((c) => ({ ...c, at: base + c.at }))].map((c) => ({ ...c }))
+    stamp()
+    document.getElementById("desk").dataset.branch = key
+  }
+  function stamp() {
     FINAL = STORY.find((s) => s.final)
     STORY.forEach((s) => (s.ms = parse(s.time)))
     START = STORY[0].ms
     STORY.forEach((s, i) => (s.label = label(s, STORY[i - 1])))
-    document.getElementById("desk").dataset.branch = key
   }
   const reduce = matchMedia("(prefers-reduced-motion: reduce)")
   const stack = document.getElementById("stack")
@@ -162,8 +168,16 @@
       leaving: false, fling: false, drag: null,
     }
     if (reduce.matches) { c.x = 0; c.sc = 1; c.o = 1 }
-    el.querySelector(".x").addEventListener("click", () => leave(c))
-    el.querySelectorAll(".actions button").forEach((b) => b.addEventListener("click", () => leave(c)))
+    el.querySelector(".x").addEventListener("click", () => { if (s.choice && choosing) decide("decline"); leave(c, 0, true) })
+    el.querySelectorAll(".actions button").forEach((b) =>
+      b.addEventListener("click", () => {
+        if (s.choice) {
+          if (choosing) decide(b.textContent === "Pay" ? "pay" : "decline", b)
+          return
+        }
+        leave(c, 0, true)
+      }),
+    )
     el.addEventListener("pointerdown", (e) => down(c, e))
     cards.unshift(c)
     layout()
@@ -171,9 +185,10 @@
     return c
   }
 
-  function leave(c, delay = 0) {
+  function leave(c, delay = 0, byHand = false) {
     if (c.leaving) return
     if (delay) return void setTimeout(() => leave(c), delay)
+    if (byHand) sound.play("whoosh")
     c.leaving = true
     // A short glide out while it fades, as Hokum's cards leave. (Gliding the card's full width
     // used to carry it past the column, where it showed beside the stack as a ghost.)
@@ -249,6 +264,7 @@
       c.dy = 0
       if (Math.abs(c.x) > geo.w * 0.33 || (Math.abs(vx) > 600 && Math.sign(vx) === Math.sign(c.x || vx))) {
         c.leaving = c.fling = true
+        sound.play("whoosh")
         c.vx = Math.sign(c.x || vx) * Math.max(Math.abs(vx), 1400)
         c.vy = vy * 0.5
         c.el.style.pointerEvents = "none"
@@ -277,22 +293,66 @@
     c[p] += c[v] * dt
   }
 
+  // Which sound a card makes.
+  function kind(s) {
+    if (s.urgency === 2) return s.app === "Mission Control" ? "rumble" : "alert"
+    // The choice already made its sound when it was pressed; its receipt just chimes.
+    if (/^You (paid|declined) Gary/.test(s.title)) return "chime"
+    if (/wedding/i.test(s.title) && s.app === "Calendar") return "wedding"
+    if (s.app === "Venmo" || (s.app === "Bank" && /\$/.test(s.body || ""))) return "money"
+    if (s.app === "Messages" || s.app === "WhatsApp") return "pop"
+    return "chime"
+  }
+
+  // The opening choice: Gary's request waits for Pay or Decline. Pressing one is the click that
+  // lets the story make sound; nobody pressing anything declines on their behalf, quietly.
+  let choosing = null
+  let choiceCard = null
+  function decide(pick, button) {
+    if (!choosing) return
+    clearTimeout(choosing.timer)
+    choosing = null
+    choiceCard?.el.classList.remove("choosing")
+    if (button) {
+      sound.unlock()
+      button.classList.add("picked")
+    }
+    choiceCard?.el.querySelectorAll(".actions button").forEach((b) => (b.disabled = true))
+    if (pick === "pay") {
+      const at = t
+      STORY = [...STORY.slice(0, next), ...window.STORY_PAY.map((c) => ({ ...c, at: at + c.at }))]
+      stamp()
+      body.dataset.branch = "pay"
+      if (button) sound.play("money")
+    } else if (button) sound.play("declined")
+    // Pressed or not, the declined line arrives on cue.
+  }
+
   function fire(s) {
     if (s.scene) body.dataset.scene = s.scene
+    // Cards fired to catch up (?t=, or a tab coming back) arrive without sound or effects.
+    const live = t - s.at < 1
+    if (live) sound.play(s.final ? "thud" : kind(s))
     if (s.final) {
       body.classList.add("end")
       // Replay shows once Gary's last word has sat there for a beat.
       clearTimeout(replayAt)
       replayAt = setTimeout(() => body.classList.add("over"), reduce.matches ? 1200 : 3000)
     }
-    make(s)
+    const c = make(s)
+    if (live) window.hokumFx?.card(s, c.el)
+    if (s.choice && t - s.at < 1) {
+      choiceCard = c
+      c.el.classList.add("choosing")
+      choosing = { timer: setTimeout(() => decide(PAY ? "pay" : "decline", PAY ? c.el.querySelector(".actions button") : null), PAY ? 1500 : 7000) }
+    }
   }
 
   function frame(now) {
     const dt = Math.min(0.1, (now - last) / 1000)
     last = now
     if (!onscreen) return requestAnimationFrame(frame)
-    t += dt
+    if (!choosing) t += dt
     if (!quieted && t >= FINAL.at - (window.QUIET ?? 3)) {
       quieted = true
       cards.forEach((c, i) => leave(c, reduce.matches ? 0 : (cards.length - 1 - i) * 90))
@@ -309,7 +369,7 @@
     const rm = reduce.matches
     const hovering = canHover.matches && !!stack.querySelector(".card:hover")
     for (const c of cards.slice()) {
-      if (!hovering && !c.leaving) c.age += dt
+      if (!hovering && !c.leaving && !choosing) c.age += dt
       if (!c.leaving && c.age > c.life) leave(c)
       if (c.bar) {
         const [p0, p1] = c.s.progress
@@ -344,6 +404,9 @@
   }
 
   function reset() {
+    if (choosing) clearTimeout(choosing.timer)
+    choosing = null
+    choiceCard = null
     load(choose(branch))
     for (const c of cards) c.el.remove()
     cards = []
@@ -355,7 +418,12 @@
     clearTimeout(replayAt)
     layout()
   }
-  document.getElementById("replay").addEventListener("click", reset)
+  document.getElementById("replay").addEventListener("click", () => { sound.unlock(); reset() })
+  // Any click on the story lets it make sound from then on.
+  body.addEventListener("pointerdown", () => sound.unlock(), { capture: true })
+  const toggle = document.getElementById("sound")
+  toggle.addEventListener("click", () => sound.toggle())
+  sound.onChange((muted) => { toggle.textContent = muted ? "sound off" : "sound on"; toggle.setAttribute("aria-pressed", String(!muted)) })
   addEventListener("resize", () => { measureGeo(); layout() })
 
   window.hokumStoryTime = () => t
