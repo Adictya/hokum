@@ -1,58 +1,66 @@
-# Theming Hokum
+# Configuring and theming Hokum
 
-Hokum's look comes in three layers, each on top of the one before:
-
-1. **Style:** the controls in the settings window (corners, density, app mark, shadow, width,
-   border, appearance).
-2. **Theme:** a [KDL](https://kdl.dev) file that can change any **token**, lay cards out with
-   **templates**, and route notifications with **rules**.
-3. **Script:** a [Rhai](https://rhai.rs) function that sees every notification first and can
-   rewrite, route or drop it.
-
-Themes live in `~/.config/hokum/themes/*.kdl` (`$XDG_CONFIG_HOME`). Pick one in the settings
-window, or start one with **New theme**, which writes your current style out as a theme and
-opens it in your editor. Saving applies it at once; problems show in the settings window with
-their line numbers, and the overlay keeps the last theme that worked.
-
-Hokum ships four themes to start from: [Terminal](../themes/terminal.kdl),
-[Bubble](../themes/bubble.kdl), [Neon](../themes/neon.kdl) and [Pill](../themes/pill.kdl). The
-built-in card is itself a template, [default.kdl](../themes/default.kdl).
+Everything about Hokum lives in one file, `~/.config/hokum/config.kdl` (`$XDG_CONFIG_HOME`).
+It starts from a theme and overrides whatever you like:
 
 ```kdl
-theme "Sunset"
+theme "neon"                 // start from a theme (default: "soft")
 
-tokens {
-    radius 18
-    fill "#2b1630" "#120a17"     // two colours: a top-to-bottom gradient
-    border 1 "accent/60"
-    shadow "glow"
+behaviour {
+    position "bottom-right"
+    stay 6                   // seconds, when the app doesn't say
+    show-at-most 5
+    pause-on-hover #true
+    do-not-disturb #false
+    appearance "system"      // system, light, dark
 }
 
-tokens "light" {
-    fill "#fff4ec" "#ffe3d6"
-}
-
-template "card" {
-    row gap=8 align="center" {
-        icon
-        text "{source|upper}" size=10 weight=700 tracking=1 color="accent" grow=#true
-        text "{time}" size=11 color="faint"
-        close
-    }
-    if "summary" { text "{summary}" weight="title" indent=#true }
-    if "body" { text "{body}" color="muted" lines=4 }
-    actions
+tokens {                     // anything about the look
+    radius 10
+    border "none"
 }
 
 rule app="Slack" { tokens { accent "#d38be0" } }
 rule app="Spotify" { hide }
-rule urgency="critical" { timeout "never" }
 ```
+
+The settings window is an editor for this file. Picking a theme writes `theme "…"`, the look
+controls write `tokens`, behaviour writes `behaviour`, and the Apps section writes
+`rule app="…"` blocks. Changes keep your comments and layout, and choosing a theme's own value
+removes the override rather than repeating it. Edit the file by hand and the window and the
+notifications update as you save; problems show in the window with line numbers, and Hokum
+keeps drawing with the last config that worked.
+
+**Themes** use the same format. Built-in ones are fixed: [Soft](../themes/soft.kdl),
+[Crisp](../themes/crisp.kdl), [Capsule](../themes/capsule.kdl), [Ribbon](../themes/ribbon.kdl),
+[Terminal](../themes/terminal.kdl), [Bubble](../themes/bubble.kdl), [Neon](../themes/neon.kdl)
+and [Pill](../themes/pill.kdl). Referencing one keeps you on its latest version with your
+overrides on top. **Clone to edit** copies it into `~/.config/hokum/themes/` to change
+everything; `theme "my-neon"` then refers to `themes/my-neon.kdl`. Any path works too
+(`theme "~/dotfiles/hokum/work.kdl"`). A theme can itself start from another theme.
+
+A theme names itself with `name "…"` (shown in the gallery). The built-in card is a template,
+[default.kdl](../themes/default.kdl), which every theme falls back to.
+
+A **script** (`~/.config/hokum/script.rhai`) is separate because it's code: it sees every
+notification first and can rewrite, route or drop it.
+
+## Behaviour
+
+| Key | Value |
+|---|---|
+| `position` | `top-right`, `top-left`, `bottom-right`, `bottom-left` (on the focused screen) |
+| `stay` | seconds ordinary notifications stay when the app doesn't say |
+| `show-at-most` | cards shown at once; the rest wait behind a "N more" pill |
+| `pause-on-hover` | `#true`: timers wait while the pointer is over a card |
+| `do-not-disturb` | `#true`: only critical notifications, and apps whose rule has `interrupt`, show |
+| `appearance` | `system`, `light`, `dark` |
 
 ## Tokens
 
 `tokens { ... }` sets values for every card; `tokens "dark" { ... }` and `tokens "light" { ... }`
-set them for one appearance. Anything a theme leaves out keeps the settings window's value.
+set them for one appearance. Anything left out keeps the theme's value (and a theme's, the
+defaults: Soft's).
 
 | Token | Value | What it does |
 |---|---|---|
@@ -143,7 +151,12 @@ on the next line draws when the condition doesn't hold.
 
 A rule matches notifications and changes them. Matchers are `app`, `summary`, `body` (case
 insensitive, `*` matches anything) and `urgency`; a rule with several matchers needs them all.
-Every matching rule applies in order, so later rules win.
+Every matching rule applies in order, a theme's before the config's, so later rules win.
+Actions: `template "…"`, `tokens { … }`, `timeout` (seconds or `"never"`), `hide`, and
+`interrupt` (show even during Do not disturb).
+
+The settings window manages rules that match one app by its exact name (`rule app="Slack"`);
+rules matching text or urgency are yours to edit in the file, and the window counts them.
 
 ```kdl
 rule app="Slack" summary="*incident*" {

@@ -1,5 +1,5 @@
 // Bubble: chat bubbles beside a big app icon, the notification's picture inline.
-theme "Bubble"
+name "Bubble"
 
 tokens {
     width 390

@@ -12,13 +12,17 @@ use rune::Color;
 use rune_kit::Kit;
 
 use crate::card::{Note, Timeout};
-use crate::style::{Depth, Mark, Style};
+use crate::style::{Appearance, Behaviour, Mark, Position};
 
 /// The built-in card, as a template.
 pub const DEFAULT: &str = include_str!("../themes/default.kdl");
 
 /// Themes that ship inside Hokum, beside the built-in card.
 pub const BUNDLED: &[(&str, &str)] = &[
+    ("soft", include_str!("../themes/soft.kdl")),
+    ("crisp", include_str!("../themes/crisp.kdl")),
+    ("capsule", include_str!("../themes/capsule.kdl")),
+    ("ribbon", include_str!("../themes/ribbon.kdl")),
     ("terminal", include_str!("../themes/terminal.kdl")),
     ("bubble", include_str!("../themes/bubble.kdl")),
     ("neon", include_str!("../themes/neon.kdl")),
@@ -133,17 +137,16 @@ pub struct Tokens {
     pub motion: (f32, f32),
 }
 
-impl Tokens {
-    /// What the settings window's style controls describe.
-    pub fn from_style(s: &Style) -> Tokens {
-        let (pad, gap, spacing) = s.spacing();
+/// Where every theme starts: Soft's values.
+impl Default for Tokens {
+    fn default() -> Tokens {
         Tokens {
-            width: s.card_width(),
-            radius: s.radius(),
-            padding: [pad; 4],
-            gap,
-            spacing,
-            badge_radius: s.badge_radius(),
+            width: 360.0,
+            radius: 16.0,
+            padding: [12.0; 4],
+            gap: 6.0,
+            spacing: 10.0,
+            badge_radius: 7.0,
             icon_size: 20.0,
             font_size: 13.0,
             title_weight: 550.0,
@@ -152,19 +155,17 @@ impl Tokens {
             text: Paint::named("text"),
             muted: Paint::named("muted"),
             faint: Paint::named("faint"),
-            border: s.border.then(|| (1.0, Paint::named("border"))),
+            border: Some((1.0, Paint::named("border"))),
             accent: Paint::named("app"),
-            shadow: match s.depth {
-                Depth::Flat => Lift::Flat,
-                Depth::Soft => Lift::Soft,
-                Depth::Deep => Lift::Deep,
-            },
-            mark: s.mark,
+            shadow: Lift::Soft,
+            mark: Mark::Icon,
             enter: Enter::Slide,
             motion: (0.38, 0.12),
         }
     }
+}
 
+impl Tokens {
     /// How far content sits from the card's edge to line up past the mark.
     pub fn indent(&self) -> f32 {
         match self.mark {
@@ -204,6 +205,34 @@ impl Overrides {
     pub fn apply(&self, t: &mut Tokens) {
         macro_rules! set {
             ($($f:ident),*) => { $(if let Some(v) = &self.$f { t.$f = v.clone(); })* };
+        }
+        set!(width, radius, padding, gap, spacing, badge_radius, icon_size, font_size, title_weight, font, fill, text, muted, faint, border, accent, shadow, mark, enter, motion);
+    }
+
+    pub fn accent(&self) -> Option<&Paint> {
+        self.accent.as_ref()
+    }
+
+    /// Whether any of `keys` (token names) is set.
+    pub fn sets(&self, keys: &[&str]) -> bool {
+        keys.iter().any(|k| match *k {
+            "width" => self.width.is_some(),
+            "radius" => self.radius.is_some(),
+            "badge-radius" => self.badge_radius.is_some(),
+            "padding" => self.padding.is_some(),
+            "gap" => self.gap.is_some(),
+            "spacing" => self.spacing.is_some(),
+            "mark" => self.mark.is_some(),
+            "shadow" => self.shadow.is_some(),
+            "border" => self.border.is_some(),
+            _ => false,
+        })
+    }
+
+    /// `top`'s values over these.
+    pub fn merge(&mut self, top: &Overrides) {
+        macro_rules! set {
+            ($($f:ident),*) => { $(if top.$f.is_some() { self.$f = top.$f.clone(); })* };
         }
         set!(width, radius, padding, gap, spacing, badge_radius, icon_size, font_size, title_weight, font, fill, text, muted, faint, border, accent, shadow, mark, enter, motion);
     }
@@ -383,14 +412,16 @@ pub enum Node {
 /// changes how long the card stays, or hides it.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Rule {
-    app: Option<String>,
-    summary: Option<String>,
-    body: Option<String>,
-    urgency: Option<u8>,
+    pub app: Option<String>,
+    pub summary: Option<String>,
+    pub body: Option<String>,
+    pub urgency: Option<u8>,
     pub template: Option<String>,
     pub tokens: Overrides,
     pub timeout: Option<Timeout>,
     pub hide: bool,
+    /// Shows even during Do not disturb.
+    pub interrupt: bool,
 }
 
 impl Rule {
@@ -427,11 +458,55 @@ pub fn glob(pattern: &str, text: &str) -> bool {
     true
 }
 
+/// Behaviour a theme or the config sets; unset values keep what's below.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Behave {
+    pub position: Option<Position>,
+    pub appearance: Option<Appearance>,
+    pub stay: Option<f32>,
+    pub show_at_most: Option<usize>,
+    pub pause_on_hover: Option<bool>,
+    pub do_not_disturb: Option<bool>,
+}
+
+impl Behave {
+    pub fn apply(&self, b: &mut Behaviour) {
+        if let Some(v) = self.position {
+            b.position = v;
+        }
+        if let Some(v) = self.appearance {
+            b.appearance = v;
+        }
+        if let Some(v) = self.stay {
+            b.stay = v;
+        }
+        if let Some(v) = self.show_at_most {
+            b.max_shown = v;
+        }
+        if let Some(v) = self.pause_on_hover {
+            b.pause_on_hover = v;
+        }
+        if let Some(v) = self.do_not_disturb {
+            b.do_not_disturb = v;
+        }
+    }
+
+    fn merge(&mut self, top: &Behave) {
+        macro_rules! set {
+            ($($f:ident),*) => { $(if top.$f.is_some() { self.$f = top.$f; })* };
+        }
+        set!(position, appearance, stay, show_at_most, pause_on_hover, do_not_disturb);
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct Theme {
     pub name: String,
-    /// Where it came from: a bundled id or a file.
+    /// Where it came from: a bundled id, a theme's file stem, or a path.
     pub id: String,
+    /// The theme this one starts from (`theme "neon"`).
+    pub base: Option<String>,
+    pub behave: Behave,
     pub tokens: Overrides,
     pub dark: Overrides,
     pub light: Overrides,
@@ -464,17 +539,47 @@ fn default_templates() -> &'static HashMap<String, Arc<Vec<Node>>> {
 }
 
 impl Theme {
-    /// The built-in card with nothing changed.
-    pub fn builtin() -> Theme {
+    /// A theme that changes nothing.
+    pub fn empty() -> Theme {
         Theme {
-            name: "Built-in".into(),
+            name: String::new(),
             id: String::new(),
+            base: None,
+            behave: Behave::default(),
             tokens: Overrides::default(),
             dark: Overrides::default(),
             light: Overrides::default(),
             templates: HashMap::new(),
             rules: Vec::new(),
         }
+    }
+
+    /// `top` over this theme: its tokens and behaviour win, its templates replace same-named
+    /// ones, and its rules run after these.
+    pub fn merge(&self, top: &Theme) -> Theme {
+        let mut t = self.clone();
+        t.tokens.merge(&top.tokens);
+        t.dark.merge(&top.dark);
+        t.light.merge(&top.light);
+        t.behave.merge(&top.behave);
+        t.templates.extend(top.templates.iter().map(|(k, v)| (k.clone(), v.clone())));
+        t.rules.extend(top.rules.iter().cloned());
+        t
+    }
+
+    /// Template names this theme can draw a card with, the default card first.
+    pub fn template_names(&self) -> Vec<String> {
+        let mut names: Vec<String> = self.templates.keys().filter(|k| *k != "card").cloned().collect();
+        names.sort();
+        names.insert(0, "card".into());
+        names
+    }
+
+    /// The behaviour this theme sets over the defaults.
+    pub fn behaviour(&self) -> Behaviour {
+        let mut b = Behaviour::default();
+        self.behave.apply(&mut b);
+        b
     }
 
     fn template(&self, name: &str) -> Arc<Vec<Node>> {
@@ -487,17 +592,17 @@ impl Theme {
             .unwrap_or_default()
     }
 
-    /// The theme's tokens over `style`, for things that aren't one card's (stack width and gaps).
-    pub fn base(&self, style: &Style, dark: bool) -> Tokens {
-        let mut t = Tokens::from_style(style);
+    /// The theme's tokens for things that aren't one card's (stack width and gaps).
+    pub fn base(&self, dark: bool) -> Tokens {
+        let mut t = Tokens::default();
         self.tokens.apply(&mut t);
         if dark { self.dark.apply(&mut t) } else { self.light.apply(&mut t) }
         t
     }
 
-    /// The look for `n`: the theme over `style`, then every rule that matches, in order.
-    pub fn look(&self, n: &Note, style: &Style, dark: bool) -> Look {
-        let mut tokens = self.base(style, dark);
+    /// The look for `n`: the theme, then every rule that matches, in order.
+    pub fn look(&self, n: &Note, dark: bool) -> Look {
+        let mut tokens = self.base(dark);
         let mut template = n.template.clone().unwrap_or_else(|| "card".into());
         if n.urgency >= 2 {
             // Critical cards stand out unless a rule says otherwise.
@@ -513,18 +618,26 @@ impl Theme {
         Look { tokens, template: self.template(&template) }
     }
 
-    /// Whether `n` shows at all, and for how long, after the rules.
-    pub fn behaviour(&self, n: &Note) -> (bool, Option<Timeout>) {
-        let mut hide = false;
-        let mut timeout = None;
-        for r in self.rules.iter().filter(|r| r.matches(n)) {
-            hide |= r.hide;
-            if r.timeout.is_some() {
-                timeout = r.timeout;
+    /// What the rules say about `n`: hide it, how long it stays, whether it breaks through
+    /// Do not disturb.
+    pub fn routing(&self, n: &Note) -> Routing {
+        let mut r = Routing::default();
+        for rule in self.rules.iter().filter(|rule| rule.matches(n)) {
+            r.hide |= rule.hide;
+            r.interrupt |= rule.interrupt;
+            if rule.timeout.is_some() {
+                r.timeout = rule.timeout;
             }
         }
-        (hide, timeout)
+        r
     }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct Routing {
+    pub hide: bool,
+    pub timeout: Option<Timeout>,
+    pub interrupt: bool,
 }
 
 /// Font names live as long as the process; themes reload, so names are shared.
@@ -720,6 +833,52 @@ impl Parser<'_> {
         o
     }
 
+    /// `behaviour { position "top-right"; stay 6; ... }`
+    fn behave(&mut self, block: &KdlNode) -> Behave {
+        let mut b = Behave::default();
+        for node in self.children(block) {
+            let Some(v) = self.args(node).first().copied() else {
+                self.problem(node, format!("`{}` needs a value", node.name().value()));
+                continue;
+            };
+            let flag = |p: &mut Self, v: &KdlValue| {
+                let f = v.as_bool();
+                if f.is_none() {
+                    p.problem(node, format!("`{}` is #true or #false", node.name().value()));
+                }
+                f
+            };
+            match node.name().value() {
+                "position" => {
+                    b.position = self.keyword(
+                        node,
+                        v,
+                        "position",
+                        &[
+                            ("top-right", Position::TopRight),
+                            ("top-left", Position::TopLeft),
+                            ("bottom-right", Position::BottomRight),
+                            ("bottom-left", Position::BottomLeft),
+                        ],
+                    )
+                }
+                "appearance" => {
+                    b.appearance =
+                        self.keyword(node, v, "appearance", &[("system", Appearance::System), ("light", Appearance::Light), ("dark", Appearance::Dark)])
+                }
+                "stay" => b.stay = self.num(node, v).map(|s| s.max(0.5)),
+                "show-at-most" => b.show_at_most = self.num(node, v).map(|n| n.clamp(1.0, 20.0) as usize),
+                "pause-on-hover" => b.pause_on_hover = flag(self, v),
+                "do-not-disturb" => b.do_not_disturb = flag(self, v),
+                other => self.problem(
+                    node,
+                    format!("unknown behaviour `{other}`; use position, appearance, stay, show-at-most, pause-on-hover, do-not-disturb"),
+                ),
+            }
+        }
+        b
+    }
+
     fn node_props(&mut self, node: &KdlNode) -> Props {
         let mut p = Props::default();
         for (key, v) in self.props(node) {
@@ -890,7 +1049,8 @@ impl Parser<'_> {
                 "tokens" => r.tokens = self.tokens(child),
                 "timeout" => r.timeout = args.first().and_then(|v| self.timeout(child, v)),
                 "hide" => r.hide = true,
-                other => self.problem(child, format!("unknown rule action `{other}`; use template, tokens, timeout, hide")),
+                "interrupt" => r.interrupt = true,
+                other => self.problem(child, format!("unknown rule action `{other}`; use template, tokens, timeout, hide, interrupt")),
             }
         }
         r
@@ -917,17 +1077,22 @@ pub fn parse(src: &str, id: &str) -> Result<Theme, Vec<Problem>> {
         }
     };
     let mut p = Parser { src, problems: Vec::new() };
-    let mut theme = Theme::builtin();
+    let mut theme = Theme::empty();
     theme.id = id.into();
     theme.name = id.into();
     for node in doc.nodes() {
         let args = p.args(node);
         match node.name().value() {
-            "theme" => {
+            "name" => {
                 if let Some(name) = args.first().and_then(|v| v.as_string()) {
                     theme.name = name.into();
                 }
             }
+            "theme" => match args.first().and_then(|v| v.as_string()) {
+                Some(base) => theme.base = Some(base.into()),
+                None => p.problem(node, "`theme` names the theme to start from, like `theme \"neon\"`"),
+            },
+            "behaviour" | "behavior" => theme.behave = p.behave(node),
             "tokens" => {
                 let o = p.tokens(node);
                 match args.first().and_then(|v| v.as_string()) {
@@ -948,7 +1113,7 @@ pub fn parse(src: &str, id: &str) -> Result<Theme, Vec<Problem>> {
                 let r = p.rule(node);
                 theme.rules.push(r);
             }
-            other => p.problem(node, format!("unknown section `{other}`; use theme, tokens, template, rule")),
+            other => p.problem(node, format!("unknown section `{other}`; use name, theme, behaviour, tokens, template, rule")),
         }
     }
     for r in &theme.rules {
@@ -972,43 +1137,89 @@ pub fn dir() -> PathBuf {
     crate::style::path().with_file_name("themes")
 }
 
-/// The bundled themes and the files in the themes folder, by id: a bundled name or a file path.
+/// Bundled themes, then the files in the themes folder: (id, name). A file's id is its stem.
 pub fn available() -> Vec<(String, String)> {
     let mut out: Vec<(String, String)> = BUNDLED.iter().map(|(id, src)| (id.to_string(), title(src).unwrap_or_else(|| id.to_string()))).collect();
     if let Ok(entries) = std::fs::read_dir(dir()) {
         let mut files: Vec<PathBuf> = entries.flatten().map(|e| e.path()).filter(|p| p.extension().is_some_and(|e| e == "kdl")).collect();
         files.sort();
         for f in files {
-            let name = std::fs::read_to_string(&f).ok().and_then(|s| title(&s)).unwrap_or_else(|| stem(&f));
-            out.push((f.display().to_string(), name));
+            let id = stem(&f);
+            if BUNDLED.iter().any(|(b, _)| *b == id) {
+                continue;
+            }
+            let name = std::fs::read_to_string(&f).ok().and_then(|s| title(&s)).unwrap_or_else(|| id.clone());
+            out.push((id, name));
         }
     }
     out
+}
+
+pub fn is_bundled(id: &str) -> bool {
+    BUNDLED.iter().any(|(b, _)| *b == id)
 }
 
 fn stem(p: &Path) -> String {
     p.file_stem().and_then(|s| s.to_str()).unwrap_or("theme").to_owned()
 }
 
-/// The `theme "Name"` line, without parsing the rest.
+/// The `name "…"` line, without parsing the rest.
 fn title(src: &str) -> Option<String> {
-    src.lines().find_map(|l| l.trim().strip_prefix("theme ")?.trim().strip_prefix('"')?.split('"').next().map(str::to_owned))
+    src.lines().find_map(|l| l.trim().strip_prefix("name ")?.trim().strip_prefix('"')?.split('"').next().map(str::to_owned))
 }
 
-/// Loads a theme by id: "" is the built-in card, a bundled name, or a file path.
-pub fn load(id: &str) -> Result<Theme, Vec<Problem>> {
-    if id.is_empty() {
-        return Ok(Theme::builtin());
-    }
+/// Where a theme reference points: a bundled theme's source, or a file.
+pub enum Found {
+    Bundled(&'static str),
+    File(PathBuf),
+}
+
+/// `"neon"` is bundled; `"my-theme"` is themes/my-theme.kdl; anything with a `/` (or `~`) is
+/// a path.
+pub fn find(id: &str) -> Option<Found> {
     if let Some((_, src)) = BUNDLED.iter().find(|(b, _)| *b == id) {
-        return parse(src, id);
+        return Some(Found::Bundled(src));
     }
-    let src = std::fs::read_to_string(id).map_err(|e| vec![Problem { line: 0, message: format!("can't read {id}: {e}") }])?;
-    let mut t = parse(&src, id)?;
-    if t.name == id {
-        t.name = stem(Path::new(id));
+    let path = if let Some(rest) = id.strip_prefix("~/") {
+        std::env::var_os("HOME").map(PathBuf::from)?.join(rest)
+    } else if id.contains('/') {
+        PathBuf::from(id)
+    } else {
+        dir().join(format!("{id}.kdl"))
+    };
+    path.is_file().then_some(Found::File(path))
+}
+
+/// A theme's own source.
+pub fn source(id: &str) -> Option<String> {
+    match find(id)? {
+        Found::Bundled(src) => Some(src.to_owned()),
+        Found::File(p) => std::fs::read_to_string(p).ok(),
     }
-    Ok(t)
+}
+
+/// A theme with everything it starts from merged in (`theme "…"` chains, up to a few deep).
+pub fn resolve(id: &str) -> Result<Theme, Vec<Problem>> {
+    let mut chain = Vec::new();
+    let mut next = Some(if id.is_empty() { "soft".to_owned() } else { id.to_owned() });
+    while let Some(id) = next.take() {
+        if chain.len() >= 4 || chain.iter().any(|t: &Theme| t.id == id) {
+            return Err(vec![Problem { line: 0, message: format!("`{id}` starts from itself or goes too deep") }]);
+        }
+        let src = source(&id).ok_or_else(|| vec![Problem { line: 0, message: format!("no theme called `{id}` (not bundled, and no {}/{id}.kdl)", dir().display()) }])?;
+        let t = parse(&src, &id)?;
+        next = t.base.clone();
+        chain.push(t);
+    }
+    let mut out = Theme::empty();
+    for t in chain.iter().rev() {
+        out = out.merge(t);
+    }
+    let first = &chain[0];
+    out.id = first.id.clone();
+    out.name = if first.name == first.id { first.id.clone() } else { first.name.clone() };
+    out.base = None;
+    Ok(out)
 }
 
 #[cfg(test)]
@@ -1027,7 +1238,7 @@ mod tests {
 
     #[test]
     fn problems_say_where_and_what() {
-        let src = "theme \"x\"\ntokens {\n  radius \"big\"\n  colour \"#fff\"\n}\ntemplate \"card\" {\n  text \"{nope}\"\n}\n";
+        let src = "name \"x\"\ntokens {\n  radius \"big\"\n  colour \"#fff\"\n}\ntemplate \"card\" {\n  text \"{nope}\"\n}\n";
         let e = parse(src, "x").unwrap_err();
         let lines: Vec<usize> = e.iter().map(|p| p.line).collect();
         assert_eq!(lines, [3, 4, 7], "{e:?}");
@@ -1043,12 +1254,12 @@ rule app="Spotify" { hide }
 "##;
         let t = parse(src, "x").unwrap();
         let mut n = Note::new(1, "Slack", "very URGENT thing", "");
-        let look = t.look(&n, &Style::default(), true);
+        let look = t.look(&n, true);
         assert_eq!(look.tokens.radius, 30.0, "later rules win");
-        assert_eq!(t.behaviour(&n), (false, Some(Timeout::Never)));
+        assert_eq!(t.routing(&n), Routing { hide: false, timeout: Some(Timeout::Never), interrupt: false });
         n.app = "Spotify".into();
         n.summary = "song".into();
-        assert!(t.behaviour(&n).0);
+        assert!(t.routing(&n).hide);
         assert!(glob("a*c", "abbbc") && !glob("a*c", "abd") && glob("*", "") && glob("Slack", "slack"));
     }
 

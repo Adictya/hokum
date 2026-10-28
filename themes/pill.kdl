@@ -1,5 +1,5 @@
 // Pill: one line per notification, icon first. Click to open, the rest is noise.
-theme "Pill"
+name "Pill"
 
 tokens {
     width 340

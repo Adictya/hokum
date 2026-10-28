@@ -8,7 +8,7 @@ use rune::{Color, Cursor, Edge, El, Image, Shadow, Spring, Transition, col, el, 
 use rune_kit::Kit;
 
 use crate::icons::Source;
-use crate::style::{Mark, Style};
+use crate::style::Mark;
 use crate::template::{Ctx, render};
 use crate::theme::{Enter, Fill, Lift, Theme};
 
@@ -115,9 +115,9 @@ pub fn tint(app: &str) -> Color {
     oklch(0.64, 0.13, (h % 360) as f32)
 }
 
-/// The card for `n`: `theme` over `style`. `from_right` picks the edge it slides in from.
-pub fn card<S: Cards>(n: &Note, theme: &Theme, style: &Style, k: &Kit, from_right: bool) -> El {
-    let look = theme.look(n, style, k.dark);
+/// The card for `n` in `theme`. `from_right` picks the edge it slides in from.
+pub fn card<S: Cards>(n: &Note, theme: &Theme, k: &Kit, from_right: bool) -> El {
+    let look = theme.look(n, k.dark);
     let t = &look.tokens;
     let tint = tint(&n.app);
     let accent = t.accent.resolve(k, tint);

@@ -1,5 +1,5 @@
 // Neon: a gradient card with a halo in each app's colour.
-theme "Neon"
+name "Neon"
 
 tokens {
     radius 14

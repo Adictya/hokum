@@ -12,9 +12,12 @@
 //! an overlay (a click-through layer surface on Wayland) and hosts the settings window. A
 //! second `hokum` asks it to show that window over D-Bus and exits.
 
+mod adjust;
+mod apps;
 mod bus;
 mod card;
 mod cards;
+mod config;
 mod icons;
 mod script;
 mod settings;

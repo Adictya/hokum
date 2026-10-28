@@ -1,5 +1,5 @@
 // Terminal: monospace one-liners, phosphor green, no decoration.
-theme "Terminal"
+name "Terminal"
 
 tokens {
     font "mono"

@@ -1,13 +1,11 @@
-//! What can be customised, its presets, and the settings file both processes read
-//! (`$XDG_CONFIG_HOME/hokum/settings.json`). Unknown or missing fields take their defaults, so
-//! older and newer files load.
+//! The settings window's vocabulary: the choices its controls offer (and the tokens each one
+//! writes), the behaviour every theme and config resolves to, and where files live.
 
 use std::path::PathBuf;
-use std::time::Duration;
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum Corners {
     Sharp,
@@ -16,7 +14,21 @@ pub enum Corners {
     Round,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize)]
+impl Corners {
+    pub const ALL: [Corners; 4] = [Corners::Sharp, Corners::Rounded, Corners::Soft, Corners::Round];
+
+    /// (radius, badge-radius)
+    pub fn radii(self) -> (f32, f32) {
+        match self {
+            Corners::Sharp => (4.0, 4.0),
+            Corners::Rounded => (10.0, 6.0),
+            Corners::Soft => (16.0, 7.0),
+            Corners::Round => (24.0, 10.0),
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum Density {
     Compact,
@@ -24,8 +36,21 @@ pub enum Density {
     Spacious,
 }
 
+impl Density {
+    pub const ALL: [Density; 3] = [Density::Compact, Density::Comfortable, Density::Spacious];
+
+    /// (padding, gap inside a card, spacing between cards)
+    pub fn spacing(self) -> (f32, f32, f32) {
+        match self {
+            Density::Compact => (10.0, 4.0, 8.0),
+            Density::Comfortable => (12.0, 6.0, 10.0),
+            Density::Spacious => (16.0, 8.0, 12.0),
+        }
+    }
+}
+
 /// How a card says which app sent it.
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum Mark {
     Letter,
@@ -36,7 +61,19 @@ pub enum Mark {
     None,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize)]
+impl Mark {
+    pub fn word(self) -> &'static str {
+        match self {
+            Mark::Letter => "letter",
+            Mark::Icon => "icon",
+            Mark::Dot => "dot",
+            Mark::Stripe => "stripe",
+            Mark::None => "none",
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum Depth {
     Flat,
@@ -44,7 +81,17 @@ pub enum Depth {
     Deep,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize)]
+impl Depth {
+    pub fn word(self) -> &'static str {
+        match self {
+            Depth::Flat => "flat",
+            Depth::Soft => "soft",
+            Depth::Deep => "deep",
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum Width {
     Narrow,
@@ -52,47 +99,11 @@ pub enum Width {
     Wide,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize)]
-pub struct Style {
-    pub corners: Corners,
-    pub density: Density,
-    pub mark: Mark,
-    pub depth: Depth,
-    pub width: Width,
-    pub border: bool,
-}
+impl Width {
+    pub const ALL: [Width; 3] = [Width::Narrow, Width::Medium, Width::Wide];
 
-impl Style {
-    pub fn radius(&self) -> f32 {
-        match self.corners {
-            Corners::Sharp => 4.0,
-            Corners::Rounded => 10.0,
-            Corners::Soft => 16.0,
-            Corners::Round => 24.0,
-        }
-    }
-
-    /// The badge follows the card's corners at its own size.
-    pub fn badge_radius(&self) -> f32 {
-        match self.corners {
-            Corners::Sharp => 4.0,
-            Corners::Rounded => 6.0,
-            Corners::Soft => 7.0,
-            Corners::Round => 10.0,
-        }
-    }
-
-    /// Card padding, the gap inside a card, and the gap between cards.
-    pub fn spacing(&self) -> (f32, f32, f32) {
-        match self.density {
-            Density::Compact => (10.0, 4.0, 8.0),
-            Density::Comfortable => (12.0, 6.0, 10.0),
-            Density::Spacious => (16.0, 8.0, 12.0),
-        }
-    }
-
-    pub fn card_width(&self) -> f32 {
-        match self.width {
+    pub fn points(self) -> f32 {
+        match self {
             Width::Narrow => 320.0,
             Width::Medium => 360.0,
             Width::Wide => 420.0,
@@ -100,55 +111,7 @@ impl Style {
     }
 }
 
-/// Four looks to start from; changing any one control makes the style custom.
-pub const PRESETS: [(&str, Style); 4] = [
-    (
-        "Soft",
-        Style {
-            corners: Corners::Soft,
-            density: Density::Comfortable,
-            mark: Mark::Icon,
-            depth: Depth::Soft,
-            width: Width::Medium,
-            border: true,
-        },
-    ),
-    (
-        "Crisp",
-        Style {
-            corners: Corners::Sharp,
-            density: Density::Compact,
-            mark: Mark::Dot,
-            depth: Depth::Flat,
-            width: Width::Narrow,
-            border: true,
-        },
-    ),
-    (
-        "Capsule",
-        Style {
-            corners: Corners::Round,
-            density: Density::Spacious,
-            mark: Mark::Icon,
-            depth: Depth::Deep,
-            width: Width::Wide,
-            border: false,
-        },
-    ),
-    (
-        "Ribbon",
-        Style {
-            corners: Corners::Rounded,
-            density: Density::Comfortable,
-            mark: Mark::Stripe,
-            depth: Depth::Soft,
-            width: Width::Medium,
-            border: true,
-        },
-    ),
-];
-
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum Position {
     TopRight,
@@ -164,9 +127,17 @@ impl Position {
     pub fn bottom(self) -> bool {
         matches!(self, Position::BottomRight | Position::BottomLeft)
     }
+    pub fn word(self) -> &'static str {
+        match self {
+            Position::TopRight => "top-right",
+            Position::TopLeft => "top-left",
+            Position::BottomRight => "bottom-right",
+            Position::BottomLeft => "bottom-left",
+        }
+    }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum Appearance {
     System,
@@ -174,95 +145,83 @@ pub enum Appearance {
     Dark,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum Linger {
-    Short,
-    Medium,
-    Long,
-}
-
-impl Linger {
-    pub fn duration(self) -> Duration {
-        Duration::from_secs(match self {
-            Linger::Short => 4,
-            Linger::Medium => 6,
-            Linger::Long => 10,
-        })
+impl Appearance {
+    pub fn word(self) -> &'static str {
+        match self {
+            Appearance::System => "system",
+            Appearance::Light => "light",
+            Appearance::Dark => "dark",
+        }
     }
 }
 
-#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
-#[serde(default)]
-pub struct Settings {
-    pub style: Style,
+/// How notifications come and go, resolved from the theme and the config.
+#[derive(Clone, PartialEq, Debug)]
+pub struct Behaviour {
     pub position: Position,
     pub appearance: Appearance,
-    /// How long ordinary notifications stay when the app doesn't say.
-    pub linger: Linger,
+    /// Seconds ordinary notifications stay when the app doesn't say.
+    pub stay: f32,
     pub max_shown: usize,
     pub pause_on_hover: bool,
-    /// Only critical notifications show.
+    /// Only critical notifications (and apps allowed to interrupt) show.
     pub do_not_disturb: bool,
-    /// The theme on top of the style: "" for none, a bundled theme's name, or a file's path.
-    pub theme: String,
 }
 
-impl Default for Settings {
+impl Default for Behaviour {
     fn default() -> Self {
-        Settings {
-            style: PRESETS[0].1,
+        Behaviour {
             position: Position::TopRight,
             appearance: Appearance::System,
-            linger: Linger::Medium,
+            stay: 6.0,
             max_shown: 5,
             pause_on_hover: true,
             do_not_disturb: false,
-            theme: String::new(),
         }
     }
 }
 
-impl Default for Style {
-    fn default() -> Self {
-        PRESETS[0].1
+impl Behaviour {
+    pub fn stay(&self) -> std::time::Duration {
+        std::time::Duration::from_secs_f32(self.stay.max(0.5))
     }
 }
 
-pub fn path() -> PathBuf {
-    let base = std::env::var_os("XDG_CONFIG_HOME")
+/// `$XDG_CONFIG_HOME/hokum/`, the folder for the config, themes and script.
+pub fn dir() -> PathBuf {
+    std::env::var_os("XDG_CONFIG_HOME")
         .map(PathBuf::from)
         .filter(|p| p.is_absolute())
         .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")))
-        .unwrap_or_else(|| PathBuf::from("."));
-    base.join("hokum").join("settings.json")
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join("hokum")
 }
 
-impl Settings {
-    /// The saved settings, or the defaults when there are none (or they don't parse).
-    pub fn load() -> Settings {
-        let p = path();
-        match std::fs::read_to_string(&p) {
-            Ok(s) => serde_json::from_str(&s).unwrap_or_else(|e| {
-                eprintln!("hokum: ignoring {}: {e}", p.display());
-                Settings::default()
-            }),
-            Err(_) => Settings::default(),
-        }
-    }
+/// A file in Hokum's folder (`themes/` and `script.rhai` sit beside the config).
+pub fn path() -> PathBuf {
+    dir().join("config.kdl")
+}
 
-    /// Writes atomically: a temp file renamed over the old one.
-    pub fn save(&self) -> std::io::Result<()> {
-        let p = path();
-        if let Some(dir) = p.parent() {
-            std::fs::create_dir_all(dir)?;
-        }
-        let tmp = p.with_extension("json.tmp");
-        std::fs::write(&tmp, serde_json::to_string_pretty(self).map_err(std::io::Error::other)? + "\n")?;
-        std::fs::rename(tmp, p)
-    }
+/// The settings file before config.kdl, read once to migrate.
+#[derive(Deserialize, Default)]
+#[serde(default)]
+pub struct Legacy {
+    pub style: Option<LegacyStyle>,
+    pub position: Option<Position>,
+    pub appearance: Option<Appearance>,
+    pub linger: Option<String>,
+    pub max_shown: Option<usize>,
+    pub pause_on_hover: Option<bool>,
+    pub do_not_disturb: Option<bool>,
+    pub theme: Option<String>,
+}
 
-    pub fn preset(&self) -> Option<usize> {
-        PRESETS.iter().position(|(_, s)| *s == self.style)
-    }
+#[derive(Deserialize, Clone, Copy)]
+pub struct LegacyStyle {
+    pub corners: Corners,
+    pub density: Density,
+    pub mark: Mark,
+    pub depth: Depth,
+    pub width: Width,
+    pub border: bool,
 }

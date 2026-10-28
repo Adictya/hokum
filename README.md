@@ -37,23 +37,25 @@ hokum --version
 Like Hex, Hokum is one process: the service owns the bus name, draws the cards on a
 click-through overlay and hosts the settings window. Launching `hokum` again shows that window.
 
-- **Styles:** four presets (Soft, Crisp, Capsule and Ribbon), or set corners, density, app
-  mark (icon, letter, dot, stripe or none), shadow, width, border and appearance yourself.
-- **Themes:** KDL files that change any token, lay cards out with templates, and route
-  notifications with rules; plus a Rhai script that can rewrite or drop notifications. Four
-  ship with Hokum (Terminal, Bubble, Neon, Pill), and edits apply as you save. See
-  [docs/theming.md](docs/theming.md).
+- **One config file:** `~/.config/hokum/config.kdl` starts from a theme and overrides anything:
+  look (`tokens`), layout (`template`), per-app and per-text `rule`s, and `behaviour`. The
+  settings window edits the same file, keeping your comments, and hand edits apply as you save.
+- **Themes:** eight built in (Soft, Crisp, Capsule, Ribbon, Terminal, Bubble, Neon, Pill), shown
+  in a gallery as real cards. Reference one and override bits, or clone it to change everything.
+  A Rhai script can rewrite or drop notifications too. See [docs/theming.md](docs/theming.md).
+- **Per app:** mute, how long its cards stay, its colour, breaking through Do not disturb, and
+  which layout it uses, for every app that has sent you a notification.
 - **Icons and pictures:** app icons from your icon theme, and the pictures notifications carry
   (avatars, album art). Emoji draw in colour.
 - **Behaviour:** screen corner, how long cards stay, how many show, pause while hovered, and
-  Do not disturb (only critical notifications show).
+  Do not disturb (only critical notifications and apps you allow show).
 - **Cards:** action buttons, a click for the default action, progress bars (`value`), and
   in-place replacement by `x-dunst-stack-tag` / `x-canonical-private-synchronous` (volume,
   brightness). Critical notifications stay until dismissed. Slack's `[workspace] in #channel`
   titles become the sender, the message, and the channel beside the app's name.
 
-Settings live in `$XDG_CONFIG_HOME/hokum/settings.json`, themes in `themes/` and the script in
-`script.rhai` beside it. Hokum notices when any of them change and applies them.
+Hokum keeps `config.kdl`, your `themes/` and `script.rhai` in `~/.config/hokum/`, and notices
+when any of them change.
 
 ## Build
 

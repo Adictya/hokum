@@ -1,6 +1,6 @@
 //! `org.freedesktop.Notifications` on the session bus, plus Hokum's own objects on the same
 //! name: `app.hokum.Settings.Activate` (a second `hokum` shows this process's window) and
-//! `app.hokum.Daemon.Reload` (re-read the settings file). Calls arrive on zbus's thread and
+//! `app.hokum.Daemon.Reload` (re-read config.kdl). Calls arrive on zbus's thread and
 //! reach the UI through Rune handles; closings and actions come back on a channel and go out
 //! as signals from a thread of their own.
 
@@ -18,7 +18,6 @@ use crate::card::{Note, Timeout};
 use crate::icons::Source;
 use crate::cards::{Out, Reason, Ui};
 use crate::settings::Daemon;
-use crate::style::Settings;
 
 const NAME: &str = "org.freedesktop.Notifications";
 const PATH: &str = "/org/freedesktop/Notifications";
@@ -166,10 +165,10 @@ struct Reloader {
 
 #[zbus::interface(name = "app.hokum.Daemon")]
 impl Reloader {
-    /// Re-read the settings file and restyle live.
+    /// Re-read config.kdl, its theme and the script, and restyle live.
     fn reload(&self) {
-        let settings = Settings::load();
-        self.ui.update(move |s, _| s.apply(settings));
+        let config = crate::watch::load();
+        self.ui.update(move |s, _| s.configure(config));
     }
 }
 
