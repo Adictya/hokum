@@ -33,12 +33,8 @@ h1, h2, h3 { text-wrap: balance; }
 /* ---- Header: Anomaly / product, and GitHub ---- */
 .top { position: relative; z-index: 20; display: flex; align-items: center; justify-content: space-between; width: min(100% - 24px, 1400px); height: 64px; margin: 0 auto; padding: 0 8px; }
 .switcher { position: relative; }
-.switcher-button { display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 10px 0 6px; margin-left: -6px; border-radius: 10px; font-size: 14px; font-weight: 600; letter-spacing: -0.01em; }
+.switcher-button { display: flex; align-items: center; gap: 6px; height: 36px; padding: 0 10px; margin-left: -10px; border-radius: 10px; font-size: 14px; font-weight: 600; letter-spacing: -0.01em; }
 .switcher-button:hover, .switcher-button[aria-expanded="true"] { background: var(--raised-2); }
-.anomaly svg { display: block; width: 20px; height: 20px; color: var(--fg); }
-.slash { color: var(--faint); font-weight: 400; }
-.current { display: flex; align-items: center; gap: 7px; }
-.current svg { width: 18px; height: 18px; }
 .chev { width: 12px; height: 12px; color: var(--muted); transition: transform 0.15s; }
 .switcher-button[aria-expanded="true"] .chev { transform: rotate(180deg); }
 .menu {

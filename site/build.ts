@@ -359,7 +359,7 @@ const html = `<!doctype html>
 <header class="top">
   <div class="switcher">
     <button type="button" class="switcher-button" aria-expanded="false" aria-controls="products-menu">
-      <span class="anomaly">${anomalyMark}</span><span class="slash">/</span><span class="current">${mark}Hokum</span>
+      <span class="current">Hokum</span>
       <svg class="chev" viewBox="0 0 10 10" aria-hidden="true"><path d="M2.5 4l2.5 2.5L7.5 4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </button>
     <div class="menu" id="products-menu" hidden>
