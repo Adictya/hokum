@@ -1,0 +1,15 @@
+// Assets-only Worker at anoma.ly/labs/hokum-story. Files live under public/labs/hokum-story/ so
+// request paths map onto them unchanged.
+{
+  "name": "hokum-hero-story",
+  "account_id": "15d29c8639fd3733b1b5486a2acfd968",
+  "compatibility_date": "2026-06-01",
+  "assets": {
+    "directory": "public",
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "none"
+  },
+  "routes": [{ "pattern": "anoma.ly/labs/hokum-story*", "zone_name": "anoma.ly" }],
+  "workers_dev": false,
+  "preview_urls": false
+}
