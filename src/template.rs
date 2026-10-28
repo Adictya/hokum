@@ -1,6 +1,6 @@
 //! Builds a card's elements from its template and tokens.
 
-use rune::{Color, Cursor, El, Family, SurfaceFit, TextStyle, col, el, icon, row, spacer, text};
+use rune::{Color, Cursor, El, Family, Spring, SurfaceFit, TextStyle, col, el, icon, row, spacer, text};
 use rune_kit::Kit;
 
 use crate::card::{Cards, Note};
@@ -240,7 +240,8 @@ fn label<S: Cards>(cx: &Ctx, n: &Node, in_row: bool) -> Vec<El> {
                 let h = props.height.unwrap_or(6.0);
                 let track = k.alpha(cx.paint(&t.text), 0.16);
                 let fill = cx.paint(props.color.as_ref().unwrap_or(&t.muted));
-                let bar = el().key("bar").w_frac(v.clamp(0.0, 1.0)).h_full().radius(h / 2.0).fill(fill);
+                // A replaced note keeps its card, so a new value glides from the old one.
+                let bar = el().key("bar").w_frac(v.clamp(0.0, 1.0)).h_full().radius(h / 2.0).fill(fill).motion(Spring::new(0.15, 0.0));
                 let e = el().key("progress").w_full().h(h).radius(h / 2.0).fill(track).clip_soft(0.0).child(bar);
                 vec![decorate(cx, e, &Props { height: None, ..props.clone() }, false)]
             }
