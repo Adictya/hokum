@@ -30,13 +30,13 @@ code, pre { font-family: var(--mono); }
 h1, h2, h3 { text-wrap: balance; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
 
-/* ---- Header: Anomaly / product, and GitHub ---- */
+/* ---- Header: the product switcher, and GitHub ---- */
 .top { position: relative; z-index: 20; display: flex; align-items: center; justify-content: space-between; width: min(100% - 24px, 1400px); height: 64px; margin: 0 auto; padding: 0 8px; }
 .switcher { position: relative; }
 .switcher-button { display: flex; align-items: center; gap: 6px; height: 36px; padding: 0 10px; margin-left: -10px; border-radius: 10px; font-size: 14px; font-weight: 600; letter-spacing: -0.01em; }
 .switcher-button:hover, .switcher-button[aria-expanded="true"] { background: var(--raised-2); }
-.chev { width: 12px; height: 12px; color: var(--muted); transition: transform 0.15s; }
-.switcher-button[aria-expanded="true"] .chev { transform: rotate(180deg); }
+.chev { flex: none; width: 6px; height: 6px; margin: 0 2px 3px 4px; border-right: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted); transform: rotate(45deg); }
+.switcher-button[aria-expanded="true"] .chev { transform: rotate(225deg); margin-bottom: -3px; }
 .menu {
   position: absolute; top: 44px; left: -6px; width: min(380px, calc(100vw - 28px)); padding: 6px; border-radius: 16px;
   background: #141418; box-shadow: 0 0 0 1px var(--line-strong), 0 24px 60px rgb(0 0 0 / 0.55);
@@ -153,9 +153,8 @@ h1, h2, h3 { text-wrap: balance; }
 .command code::before { content: "$ "; opacity: 0.4; }
 .command button { height: 36px; padding: 0 14px; border-radius: 10px; background: rgb(0 0 0 / 0.07); font-size: 13px; font-weight: 600; }
 .command button:hover { background: rgb(0 0 0 / 0.12); }
-.download { display: grid; grid-template-columns: 18px auto 18px; align-items: center; gap: 10px; min-width: 230px; height: 50px; padding: 0 18px; border-radius: 14px; background: var(--fg); color: #0c0c0f; font-size: 15px; font-weight: 600; box-shadow: 0 12px 40px rgb(0 0 0 / 0.35); transition: transform 0.15s; }
+.download { display: grid; grid-template-columns: auto 18px; justify-content: center; align-items: center; gap: 10px; min-width: 230px; height: 50px; padding: 0 18px; border-radius: 14px; background: var(--fg); color: #0c0c0f; font-size: 15px; font-weight: 600; box-shadow: 0 12px 40px rgb(0 0 0 / 0.35); transition: transform 0.15s; }
 .download:hover { transform: translateY(-1px); }
-.download svg { width: 18px; height: 18px; }
 .cta-note { margin: 0; font-size: 13.5px; color: var(--muted); }
 .cta-note a { color: var(--fg); border-bottom: 1px solid var(--line-strong); }
 .cta-note code { font-size: 12.5px; }
