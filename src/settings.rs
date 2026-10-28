@@ -351,7 +351,11 @@ fn tile(s: &Ui, k: &Kit, i: usize, id: &str, name: &str, theme: &Theme) -> El {
                 .hover(c.hover)
                 .press(c.pressed)
                 .cursor(Cursor::Pointer)
-                .on_press(move |s: &mut Ui| s.pick_theme(pick.clone())),
+                .on_press_tx(move |s: &mut Ui, tx: &mut Tx| {
+                    // The preview swaps to the new theme at once rather than fading across.
+                    tx.instant();
+                    s.pick_theme(pick.clone())
+                }),
         );
     col()
         .key(format!("theme-{i}"))
@@ -602,7 +606,7 @@ fn apps(s: &Ui, k: &Kit) -> El {
                 .hover(c.hover)
                 .press(c.pressed)
                 .cursor(Cursor::Pointer)
-                .on_press(move |s: &mut Ui| s.page = page.clone())
+                .on_press_tx(move |s: &mut Ui, tx: &mut Tx| go(s, tx, page.clone()))
                 .child(app_mark(s, k, app, 22.0))
                 .child(text(app.clone()).key("name").font(k.ty.ui).color(if rule.hide { c.text_faint } else { c.text_base }).grow(1.0).shrink().truncate())
                 .child(text(app_summary(&rule)).key("summary").font(k.ty.small).color(c.text_muted))
@@ -691,10 +695,16 @@ static APPS_ICON: rune::Icon = rune::Icon {
 static CHEVRON: rune::Icon = rune::Icon { name: "chevron", view: 16.0, body: r#"<path d="M6.5 4L10.5 8L6.5 12" stroke="currentColor"/>"# };
 static BACK: rune::Icon = rune::Icon { name: "back", view: 16.0, body: r#"<path d="M9.5 4L5.5 8L9.5 12" stroke="currentColor"/>"# };
 
+/// Goes to `page`, swapping the content at once: screens don't fade into each other.
+fn go(s: &mut Ui, tx: &mut Tx, page: Page) {
+    tx.instant();
+    s.page = page;
+}
+
 fn nav(s: &Ui, k: &Kit) -> El {
     let c = &k.c;
     let item = |key: &str, label: &str, icon: &'static rune::Icon, page: Page, on: bool| {
-        SidebarRow::new(label).icon(icon).selected(on).on_select(move |s: &mut Ui, _: &mut Tx| s.page = page.clone()).build(k).key(key.to_owned())
+        SidebarRow::new(label).icon(icon).selected(on).on_select(move |s: &mut Ui, tx: &mut Tx| go(s, tx, page.clone())).build(k).key(key.to_owned())
     };
     let title = text("Hokum").key("name").font(rune::TextStyle { size: 20.0, ..k.ty.ui_medium }.lh(24.0)).color(c.text_base).px(8.0).pt(20.0).pb(12.0);
     let list = Sidebar::new()
@@ -732,7 +742,7 @@ fn content(s: &Ui, k: &Kit) -> El {
                 .icon(&BACK)
                 .variant(ButtonVariant::GhostMuted)
                 .control_size(ControlSize::Regular)
-                .on_press(|s: &mut Ui| s.page = Page::Apps)
+                .on_press_tx(|s: &mut Ui, tx: &mut Tx| go(s, tx, Page::Apps))
                 .build(k)
                 .key("back")
                 .self_start()
@@ -890,4 +900,40 @@ pub fn spec() -> AppSpec<Ui> {
 /// Fixed-size, like Hex's window: tiling compositors open it floating.
 pub fn window() -> WindowOptions {
     WindowOptions { min_size: Some(SIZE), max_size: Some(SIZE), resizable: false, ..WindowOptions::default() }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn press(rt: &mut rune::Runtime<Ui>, key: &str) {
+        let (x, y) = rt.find(key).unwrap_or_else(|| panic!("no {key}"));
+        rt.pointer_down(x, y);
+        rt.pointer_up(x, y);
+        rt.frame(1.0 / 60.0);
+    }
+
+    /// Present at full opacity, with nothing left fading out.
+    fn shown_at_once(rt: &rune::Runtime<Ui>, page: &str) {
+        let (_, opacity) = rt.presented(page).unwrap_or_else(|| panic!("no {page}"));
+        assert_eq!(opacity, 1.0, "{page} fades in");
+        let exiting: Vec<String> = rt.elements().into_iter().filter(|e| e.exiting).map(|e| e.path).collect();
+        assert!(exiting.is_empty(), "still fading out: {exiting:?}");
+    }
+
+    #[test]
+    fn screens_switch_without_fading() {
+        let mut ui = init();
+        ui.apps = vec!["Slack".into()];
+        let mut rt = rune::Runtime::new(ui, view, SIZE, rune::Env::default());
+        rt.frame(0.0);
+        press(&mut rt, "nav-behaviour");
+        shown_at_once(&rt, "page-behaviour");
+        press(&mut rt, "nav-apps");
+        shown_at_once(&rt, "page-apps");
+        press(&mut rt, "app-0");
+        shown_at_once(&rt, "page-app");
+        press(&mut rt, "back");
+        shown_at_once(&rt, "page-apps");
+    }
 }
