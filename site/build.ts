@@ -22,7 +22,7 @@ const themesDoc = read("docs/themes.md")
 const themingDoc = read("docs/theming.md")
 const version = read("Cargo.toml").match(/^version = "(.+)"/m)?.[1] ?? ""
 
-// Other Anomaly products: the ones with a public site. Icons are drawn here, not loaded.
+// Other Anomaly products, for the header's switcher. Icons are drawn here, not loaded.
 const products = [
   { name: "opencode", line: "The open source coding agent.", url: "https://opencode.ai", repo: "https://github.com/anomalyco/opencode",
     icon: `<rect width="32" height="32" rx="8" fill="#211e1e"/><path d="M10 9h12v14H10z" fill="none" stroke="#fff" stroke-width="2.4"/><path d="M13 16h6v4h-6z" fill="#fff" opacity=".45"/>` },
@@ -34,10 +34,6 @@ const products = [
     icon: `<rect width="32" height="32" rx="8" fill="#0f172a"/><rect x="6.5" y="8.5" width="19" height="15" rx="2" fill="none" stroke="#e2e8f0" stroke-width="1.6"/><path d="M10 13.5l3 2.5-3 2.5M15 19h6" fill="none" stroke="#5eead4" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>` },
   { name: "models.dev", line: "An open source database of AI models.", url: "https://models.dev", repo: "https://github.com/anomalyco/models.dev",
     icon: `<rect width="32" height="32" rx="8" fill="#18181b"/><g fill="#fff"><rect x="8" y="8" width="7" height="7" rx="1.5"/><rect x="17" y="8" width="7" height="7" rx="1.5" opacity=".55"/><rect x="8" y="17" width="7" height="7" rx="1.5" opacity=".55"/><rect x="17" y="17" width="7" height="7" rx="1.5" opacity=".3"/></g>` },
-  { name: "SST", line: "Build full-stack apps on your own infrastructure.", url: "https://sst.dev", repo: "https://github.com/anomalyco/sst",
-    icon: `<rect width="32" height="32" rx="8" fill="#e27152"/><path d="M9 11.5h14M9 16h14M9 20.5h9" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/>` },
-  { name: "OpenAuth", line: "Universal, standards-based auth provider.", url: "https://openauth.js.org", repo: "https://github.com/anomalyco/openauth",
-    icon: `<rect width="32" height="32" rx="8" fill="#111"/><rect x="10" y="15" width="12" height="9" rx="2" fill="#fff"/><path d="M12.5 15v-2.5a3.5 3.5 0 0 1 7 0V15" fill="none" stroke="#fff" stroke-width="2"/>` },
 ]
 const escape = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")
@@ -215,10 +211,6 @@ The built-in themes, as Hokum ships them. A theme of your own can start from one
 ${[...themes.map((t) => ({ name: t.name, file: t.file, source: t.source })), { name: "The built-in card", file: "default.kdl", source: defaultCard }]
   .map((t) => `### ${themeHeading(t.name, t.file)}\n\n\`\`\`kdl\n${t.source.trimEnd()}\n\`\`\``)
   .join("\n\n")}
-
-## More from Anomaly
-
-${products.map((p) => `- [${p.name}](${p.url}): ${p.line}`).join("\n")}
 
 ## License
 
@@ -468,12 +460,6 @@ ${themes.map((t) => `        <div class="theme"><span class="name">${escape(t.na
   </div>
 </section>
 
-<section class="products" aria-labelledby="products-title">
-  <h2 id="products-title">More from Anomaly</h2>
-  <div class="product-grid">
-${products.map((p) => `    <a class="product" href="${p.url}">${productIcon(p)}<b>${escape(p.name)}</b><span>${escape(p.line)}</span><i>${escape(p.url.replace(/^https:\/\//, ""))} →</i></a>`).join("\n")}
-  </div>
-</section>
 </main>
 
 <footer class="foot">

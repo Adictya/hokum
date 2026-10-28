@@ -7,12 +7,11 @@ same page as one self-contained markdown document: install, usage, the configura
 the complete theme guide (`docs/themes.md`) and the source of every built-in theme, with links
 between them rewritten to headings. Hokum's **Make your own theme** prompt points agents here.
 
-The page has no images. From the top: the Anomaly product switcher and GitHub; the hero, a
+The page has no images. From the top: the Anomaly product switcher (the `products` list in `build.ts`) and GitHub; the hero, a
 desktop where a crime story plays out in notification cards; the headline and an install button
 for the visitor's platform (`site.js` guesses; `?platform=arch|debian|fedora|binary`); four
 live feature clips (`clips.js`, drawn with the hero's cards); what Hokum does, the "make your own
-theme" prompt and the folded references; other Anomaly products (the `products` list in
-`build.ts`); the Anomaly footer with a "Built with opencode" badge.
+theme" prompt and the folded references; the Anomaly footer with a "Built with opencode" badge.
 
 | Source | Becomes |
 |---|---|
