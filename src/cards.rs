@@ -309,7 +309,21 @@ fn overflow(s: &mut Ui) {
 }
 
 fn headless_state() -> Ui {
-    Ui::new(Settings::load(), std::sync::mpsc::channel().0, std::sync::mpsc::channel().0)
+    let mut ui = Ui::new(Settings::load(), std::sync::mpsc::channel().0, std::sync::mpsc::channel().0);
+    // `--theme light|dark` picks the appearance, as the desktop would.
+    ui.system_dark = !std::env::args().any(|a| a == "light");
+    ui
+}
+
+/// The overlay's view over a wallpaper-like gradient: headless renders clear to opaque black,
+/// where an overlay would show the desktop behind it.
+fn headless_view(s: &Ui, cx: &mut Cx<Ui>) -> El {
+    let (top, bottom) = if s.dark() {
+        (rune::oklch(0.32, 0.06, 265.0), rune::oklch(0.22, 0.05, 300.0))
+    } else {
+        (rune::oklch(0.86, 0.05, 230.0), rune::oklch(0.78, 0.07, 290.0))
+    };
+    el().key("desktop").w_full().h_full().gradient(top, bottom).child(view(s, cx))
 }
 
 /// The cards as an app of their own, for headless snapshots (`hokum service --snap`).
@@ -326,7 +340,7 @@ pub fn headless() {
         ],
         fonts: rune_theme_opencode::FONTS,
         families: rune_theme_opencode::FAMILIES,
-        ..AppSpec::new("Hokum", size(&settings), headless_state, view)
+        ..AppSpec::new("Hokum", size(&settings), headless_state, headless_view)
     };
     rune::App::new(spec).run();
 }
