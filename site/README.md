@@ -21,7 +21,7 @@ agents get.
 | `docs/themes.md` | The theme guide (markdown) |
 | `themes/*.kdl` | The built-in theme sources (markdown) |
 | `story.js` | The story as data: `STORY_TRUNK` (everyone sees it), then `STORY_BRANCHES` (six endings) |
-| `hero.js` | The cards: Capsule's look and spring, stacking, the "N more" pill, drag, fling, dismiss, the clock, and Replay once the story ends |
+| `hero.js` | The cards: Capsule's look and spring, stacking (older cards leave when the column is full), drag, fling, dismiss, the clock, and Replay once the story ends |
 
 Each visit plays the trunk and one random branch; Replay picks one not seen yet. `?branch=1..6`
 or `?branch=gig|agent|world|legend|dead|empire` forces one, `?t=60` starts 60 s in. The

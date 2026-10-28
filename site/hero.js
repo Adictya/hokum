@@ -29,7 +29,6 @@
   }
   const reduce = matchMedia("(prefers-reduced-motion: reduce)")
   const stack = document.getElementById("stack")
-  const more = document.getElementById("more")
   const clock = document.getElementById("clock")
   // The story's stage: the hero section (scene and end classes live here, not on <body>).
   const body = document.getElementById("desk")
@@ -197,33 +196,29 @@
     layout()
   }
 
+  // Newest at the top; a card that no longer fits above the column's bottom leaves the way
+  // cards leave (a short glide and a fade) rather than piling up.
   function layout() {
     let y = geo.top
-    let hidden = 0
     let shown = 0
     for (const c of cards) {
       if (c.leaving) continue
-      if (shown === 0 || (!hidden && y + c.h <= geo.bottom - 32)) {
-        c.ty = y
-        c.to = 1
-        c.ts = 1
-        c.el.style.pointerEvents = ""
-        c.el.style.zIndex = "2"
-        y += c.h + GAP
-        shown++
-      } else {
-        hidden++
-        c.ty = y - GAP - c.h * 0.5
+      if (shown > 0 && y + c.h > geo.bottom) {
+        c.leaving = true
+        c.tx = 56
         c.to = 0
-        c.ts = 0.94
         c.el.style.pointerEvents = "none"
-        c.el.style.zIndex = "1"
+        c.el.style.zIndex = "0"
+        if (reduce.matches) { c.el.remove(); cards = cards.filter((k) => k !== c) }
+        continue
       }
-    }
-    more.classList.toggle("on", hidden > 0)
-    if (hidden) {
-      more.textContent = `${hidden} more`
-      more.style.transform = `translate(${geo.x0 + geo.w / 2}px, ${y}px) translateX(-50%)`
+      c.ty = y
+      c.to = 1
+      c.ts = 1
+      c.el.style.pointerEvents = ""
+      c.el.style.zIndex = "2"
+      y += c.h + GAP
+      shown++
     }
   }
 

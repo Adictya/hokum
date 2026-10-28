@@ -326,7 +326,6 @@ ${products.map((p) => `        <a class="menu-item" href="${p.url}">${productIco
     <div class="desk" id="desk">
       <div class="clock" id="clock" aria-hidden="true"></div>
       <div class="stack" id="stack" aria-live="polite" aria-label="Notifications"></div>
-      <div class="more" id="more" aria-hidden="true"></div>
       <button id="replay" class="replay" type="button">replay</button>
     </div>
   </div>
