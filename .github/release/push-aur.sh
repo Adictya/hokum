@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # push-aur.sh <dir> | check: pushes the staged hokum-bin package (PKGBUILD,
-# .SRCINFO, and hokum-bin.install, staged and tested by
-# scripts/release-aur.sh in a job without secrets) to the AUR
-# with AUR_SSH_PRIVATE_KEY, or with `check` confirms the AUR accepts the key.
+# .SRCINFO, and its files, staged and tested by scripts/release-aur.sh in a
+# job without secrets) to the AUR with AUR_SSH_PRIVATE_KEY, or with `check`
+# confirms the AUR accepts the key.
 . "$(dirname "$0")/lib.sh"
 
 package=hokum-bin
-files=(PKGBUILD .SRCINFO "$package.install")
+files=(PKGBUILD .SRCINFO hokum.service app.hokum.Notifications.service hokum.desktop LICENSE "$package.install")
 : "${AUR_SSH_PRIVATE_KEY:?Set AUR_SSH_PRIVATE_KEY to the AUR SSH private key}"
 temporary=$(mktemp -d)
 trap 'rm -rf "$temporary"' EXIT
@@ -29,7 +29,7 @@ paste <(sed -n 's/^\tsource_[a-z0-9_]* = [^:]*::\(.*\)$/\1/p' "$dir/.SRCINFO") \
   <(sed -n 's/^\tsha256sums_[a-z0-9_]* = //p' "$dir/.SRCINFO") > "$temporary/sources"
 [ "$(wc -l < "$temporary/sources")" -eq 2 ] || die "Expected two architecture sources in .SRCINFO."
 while IFS=$'\t' read -r url sum; do
-  [[ "$url" =~ ^https://github\.com/[^/]+/[^/]+/releases/download/v$version/hokum-$version-linux-(x64|arm64)\.tar\.gz$ ]] ||
+  [[ "$url" =~ ^https://anoma\.ly/release/hokum/files/[0-9a-f]{64}/hokum$ ]] ||
     die "Unexpected source $url."
   [ "$(curl -fsSL --retry 3 "$url" | sha256 - | cut -c1-64)" = "$sum" ] || die "$url does not serve $sum."
 done < "$temporary/sources"

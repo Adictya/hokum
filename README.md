@@ -15,9 +15,24 @@ From the AUR:
 paru -S hokum-bin
 ```
 
-Or unpack a tarball from [Releases](https://github.com/anomalyco/hokum/releases) and install
-`hokum` on your `PATH` together with the systemd unit, D-Bus activation file and launcher entry
-next to it.
+On Debian and Ubuntu (use `linux-arm64-deb` on ARM):
+
+```sh
+curl -fLo /tmp/hokum.deb https://anoma.ly/release/hokum/desktop/stable/linux-x64-deb
+sudo apt install /tmp/hokum.deb
+```
+
+On Fedora and openSUSE (use `linux-arm64-rpm` on ARM):
+
+```sh
+curl -fLo /tmp/hokum.rpm https://anoma.ly/release/hokum/desktop/stable/linux-x64-rpm
+sudo dnf install /tmp/hokum.rpm
+```
+
+Or download the `hokum` executable from [Releases](https://github.com/anomalyco/hokum/releases)
+and install it on your `PATH` together with the systemd unit, D-Bus activation file and launcher
+entry from [`packaging/`](packaging). Development builds of `dev` are on the
+[dev channel](https://anoma.ly/release/hokum/desktop/dev.json).
 
 Hokum starts through D-Bus activation on the first notification. To start it with your session
 instead, and stop another daemon (mako, dunst, swaync) holding the name:

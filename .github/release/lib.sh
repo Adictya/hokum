@@ -1,10 +1,10 @@
 # shellcheck shell=bash
 # Shared helpers for the release scripts. Sourced, never executed.
 #
-# .github/release/ and the release workflows (.github/workflows/hokum-*.yml)
-# are the security boundary for releases (docs/releasing.md).
-# Jobs that hold a secret or a write token check out only this directory and
-# run only these scripts, on
+# .github/release/ and .github/workflows/release.yml are the security
+# boundary for releases (docs/releasing.md). Jobs that hold a secret, a write
+# token, or an OIDC token check out only this directory and run only these
+# scripts, on
 # verified artifacts that they treat as data: they never build, install
 # dependencies, or execute repository code or artifact contents. Every value
 # that names a destination comes from the environment the workflow sets.

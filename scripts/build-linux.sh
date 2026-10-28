@@ -1,26 +1,21 @@
 #!/bin/sh
-# Builds the Hokum Linux release tarball for this machine's architecture,
-# dist/hokum-<version>-linux-<x64|arm64>.tar.gz, from a clean checkout, and
-# prints its path. The Hokum release workflow
-# (.github/workflows/release.yml) publishes it on the GitHub release
-# v<version>, and the AUR package hokum-bin installs from it.
+# Builds the Hokum Linux release executable for this machine's architecture,
+# dist/hokum-<version>-linux-<x64|arm64>, from a clean checkout, and prints
+# its path. The Release workflow (.github/workflows/release.yml) publishes it
+# as the linux-<x64|arm64> target of the release service (docs/releasing.md),
+# scripts/package-linux.sh wraps it in the .deb and .rpm, and the AUR package
+# hokum-bin installs it.
 #
-# The tarball holds one directory, hokum-<version>-linux-<arch>/, with:
-#   hokum                              the executable (/usr/bin/hokum)
-#   hokum.service                      the systemd user unit
-#   app.hokum.Notifications.service    the D-Bus activation file
-#   hokum.desktop                      the launcher entry (the settings window)
-#   LICENSE
-#
-# Environment: HOKUM_RELEASE_DIST (default <repository>/dist), CARGO_TARGET_DIR.
+# Environment: HOKUM_VERSION (default the version in Cargo.toml; Release sets
+# 0.0.0-dev-<run> for dev builds), HOKUM_RELEASE_DIST (default
+# <repository>/dist), CARGO_TARGET_DIR.
 set -eu
 
-hokum=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
-root=$hokum
+root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
 dist=${HOKUM_RELEASE_DIST:-"$root/dist"}
 target_dir=${CARGO_TARGET_DIR:-"$root/target"}
 
-for command in cargo file git jq tar gzip; do
+for command in cargo file git jq; do
   if ! command -v "$command" >/dev/null 2>&1; then
     echo "Linux builds require $command." >&2
     exit 1
@@ -34,10 +29,10 @@ case "$(uname -s) $(uname -m)" in
     exit 1
     ;;
 esac
-version=$(cargo metadata --no-deps --format-version 1 --manifest-path "$root/Cargo.toml" |
-  jq -r '.packages[] | select(.name == "hokum") | .version')
-if ! printf '%s\n' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-  echo "Release builds need an X.Y.Z version in Cargo.toml, not $version." >&2
+version=${HOKUM_VERSION:-$(cargo metadata --no-deps --format-version 1 --manifest-path "$root/Cargo.toml" |
+  jq -r '.packages[] | select(.name == "hokum") | .version')}
+if ! printf '%s\n' "$version" | grep -Eq '^([0-9]+\.[0-9]+\.[0-9]+(-beta\.[0-9]+)?|0\.0\.0-dev-[0-9]+)$'; then
+  echo "Release builds need a version like 0.1.0, 0.2.0-beta.1, or 0.0.0-dev-3, not $version." >&2
   exit 1
 fi
 if [ -n "$(git -C "$root" status --porcelain)" ]; then
@@ -45,29 +40,20 @@ if [ -n "$(git -C "$root" status --porcelain)" ]; then
   exit 1
 fi
 
+"$root/scripts/set-crate-version.sh" "$root" "$version" >&2
 (cd "$root" && cargo build --locked --release -p hokum >&2)
-executable="$target_dir/release/hokum"
+mkdir -p "$dist"
+executable="$dist/hokum-$version-linux-$label"
+install -m755 "$target_dir/release/hokum" "$executable"
 file "$executable" | grep -E "ELF 64-bit.*$elf" >/dev/null
-
-# Headless renders of the cards and the settings window: proves the executable starts,
-# finds a Vulkan device (lavapipe in CI), and draws, without a compositor or D-Bus.
 test "$("$executable" --version)" = "hokum $version"
+
+# Headless renders of the cards and the settings window: proves the executable
+# starts, finds a Vulkan device (lavapipe in CI), and draws, without a
+# compositor or D-Bus.
 temporary=$(mktemp -d)
 trap 'rm -rf "$temporary"' EXIT HUP INT TERM
 XDG_CONFIG_HOME="$temporary" "$executable" service --snap "$temporary/cards.png" --scene demo >&2
 XDG_CONFIG_HOME="$temporary" "$executable" --snap "$temporary/settings.png" --scene hokum >&2
 file "$temporary/cards.png" "$temporary/settings.png" | grep -c 'PNG image data' | grep -qx 2
-
-name="hokum-$version-linux-$label"
-stage="$temporary/$name"
-mkdir -p "$stage" "$dist"
-install -m755 "$executable" "$stage/hokum"
-install -m644 "$hokum/packaging/hokum.service" "$hokum/packaging/app.hokum.Notifications.service" \
-  "$hokum/packaging/hokum.desktop" \
-  "$root/LICENSE" "$stage/"
-# Reproducible: sorted names, no owners, and the commit's time.
-epoch=$(git -C "$root" log -1 --format=%ct)
-tarball="$dist/$name.tar.gz"
-tar --sort=name --owner=0 --group=0 --numeric-owner --mtime="@$epoch" \
-  -C "$temporary" -cf - "$name" | gzip -9n > "$tarball"
-echo "$tarball"
+echo "$executable"

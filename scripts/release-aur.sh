@@ -1,21 +1,22 @@
 #!/bin/sh
-# Stages and tests the AUR package hokum-bin from a release's Linux tarballs,
-# without secrets. Runs on Arch (CI uses the archlinux container). The Hokum
-# release workflow's AUR job pushes the staged files with
+# Stages and tests the AUR package hokum-bin from a release's Linux
+# executables, without secrets. Runs on Arch (CI uses the archlinux
+# container). The Release workflow's AUR job pushes the staged files with
 # .github/release/push-aur.sh, which holds the AUR key.
 #
-#   release-aur.sh stage <version> <x64 tarball> <arm64 tarball> <dir>
+#   release-aur.sh stage <version> <x64 executable> <x64 url> <arm64 executable> <arm64 url> <dir>
 #   release-aur.sh test  <dir>    # makepkg on this machine's architecture
 #
-# The PKGBUILD downloads the tarballs from the GitHub release
-# v<version>; stage copies them in under their source names, so `test`
-# downloads nothing and works before the release exists.
+# The package downloads the executable from the release service's linux-x64
+# or linux-arm64 file URL, so stage only after the release is published
+# there. stage copies the executables in under their source names, so `test`
+# downloads nothing.
 set -eu
 
-hokum=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
-package='hokum-bin'
+root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
+package=hokum-bin
 usage() {
-  echo "Usage: $0 stage <version> <x64 tarball> <arm64 tarball> <dir> | test <dir>" >&2
+  echo "Usage: $0 stage <version> <x64 executable> <x64 url> <arm64 executable> <arm64 url> <dir> | test <dir>" >&2
   exit 1
 }
 [ $# -ge 1 ] || usage
@@ -28,21 +29,32 @@ sha256_of() {
 
 case "$mode" in
   stage)
-    [ $# -eq 4 ] || usage
-    version=$1 x64=$2 arm64=$3 dir=$4
-    printf '%s\n' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'
-    [ "$(basename "$x64")" = "hokum-$version-linux-x64.tar.gz" ] || usage
-    [ "$(basename "$arm64")" = "hokum-$version-linux-arm64.tar.gz" ] || usage
-    for tarball in "$x64" "$arm64"; do
-      gzip -t "$tarball"
+    [ $# -eq 6 ] || usage
+    version=$1 x64=$2 x64_url=$3 arm64=$4 arm64_url=$5 dir=$6
+    printf '%s\n' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-beta\.[0-9]+)?$'
+    for url in "$x64_url" "$arm64_url"; do
+      printf '%s\n' "$url" | grep -Eq '^https://anoma\.ly/release/hokum/files/[0-9a-f]{64}/hokum$'
+    done
+    # pkgver may not contain hyphens: 0.2.0-beta.3 is 0.2.0_beta.3.
+    pkgver=$(printf '%s' "$version" | tr - _)
+    for executable in "$x64" "$arm64"; do
+      test "$(head -c 4 "$executable" | od -An -tx1 | tr -d ' ')" = 7f454c46
     done
     mkdir -p "$dir"
-    cp "$hokum/packaging/aur/$package.install" "$dir/"
-    cp "$x64" "$arm64" "$dir/"
-    sed -e "s/@VERSION@/$version/" \
+    cp "$root/packaging/hokum.service" "$root/packaging/app.hokum.Notifications.service" \
+      "$root/packaging/hokum.desktop" "$root/packaging/aur/$package.install" "$root/LICENSE" "$dir/"
+    cp "$x64" "$dir/hokum-$pkgver-linux-x64"
+    cp "$arm64" "$dir/hokum-$pkgver-linux-arm64"
+    sed -e "s/@VERSION@/$pkgver/" \
+      -e "s#@URL_X64@#$x64_url#" \
+      -e "s#@URL_ARM64@#$arm64_url#" \
       -e "s/@SHA256_X64@/$(sha256_of "$x64")/" \
       -e "s/@SHA256_ARM64@/$(sha256_of "$arm64")/" \
-      "$hokum/packaging/aur/PKGBUILD" > "$dir/PKGBUILD"
+      -e "s/@SERVICE_SHA256@/$(sha256_of "$dir/hokum.service")/" \
+      -e "s/@DBUS_SHA256@/$(sha256_of "$dir/app.hokum.Notifications.service")/" \
+      -e "s/@DESKTOP_SHA256@/$(sha256_of "$dir/hokum.desktop")/" \
+      -e "s/@LICENSE_SHA256@/$(sha256_of "$dir/LICENSE")/" \
+      "$root/packaging/aur/PKGBUILD" > "$dir/PKGBUILD"
     if grep -q '@[A-Z0-9_]*@' "$dir/PKGBUILD"; then
       echo "PKGBUILD has an unfilled placeholder." >&2
       exit 1
