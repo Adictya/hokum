@@ -121,9 +121,10 @@ h1, h2, h3 { text-wrap: balance; font-weight: 400; }
 .controls button:hover, .controls button:focus-visible { color: var(--fg); }
 .desk.end #skip { display: none; }
 
-/* Anchored under the header, not centred: a modest gap that grows a little with the screen. */
-.split { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: clamp(40px, 7vw, 112px); align-items: start; width: var(--wrap); margin: 0 auto; padding-top: clamp(64px, 10vh, 110px); }
-.intro h1 { margin: 6px 0 0; max-width: 7.6em; font: 400 clamp(56px, 6.6vw, 96px)/0.98 var(--serif); letter-spacing: -0.035em; color: var(--fg); }
+/* Anchored under the header, not centred in the screen: a modest gap that grows a little with it.
+   The words sit centred against the card column. */
+.split { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: clamp(40px, 7vw, 112px); align-items: center; width: var(--wrap); margin: 0 auto; padding-top: clamp(64px, 10vh, 110px); }
+.intro h1 { margin: 0; max-width: 7.6em; font: 400 clamp(56px, 6.6vw, 96px)/0.98 var(--serif); letter-spacing: -0.035em; color: var(--fg); }
 
 /* The story: a fixed-height column, so the stack never moves the page. */
 .desk { position: relative; height: clamp(440px, 62svh, 580px); }
@@ -168,7 +169,7 @@ h1, h2, h3 { text-wrap: balance; font-weight: 400; }
 .copyright a { color: inherit; text-decoration: underline rgba(255, 255, 255, .2); text-underline-offset: 2px; }
 
 @media (max-width: 860px) {
-  .split { grid-template-columns: 1fr; gap: 48px; padding-top: 40px; }
+  .split { grid-template-columns: 1fr; gap: 48px; align-items: start; padding-top: 40px; }
   .desk { width: 100%; max-width: 420px; height: 470px; }
 }
 @media (max-width: 720px) {
