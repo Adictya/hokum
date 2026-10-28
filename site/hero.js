@@ -134,7 +134,7 @@
     const vw = body.clientWidth
     const vh = body.clientHeight
     const w = Math.min(420, vw)
-    geo = { w, x0: vw - w, top: 34, bottom: vh - 40, vw, vh }
+    geo = { w, x0: vw - w, top: 34, bottom: vh - 26, vw, vh }
     for (const c of cards) {
       c.el.style.setProperty("--w", w + "px")
       c.h = c.el.offsetHeight
