@@ -30,6 +30,8 @@ pub struct Note {
     /// (key, label) without the default action or Chromium's "settings".
     pub actions: Vec<(String, String)>,
     pub has_default: bool,
+    /// The sender's `desktop-entry`, named when asking for an activation token.
+    pub desktop: Option<String>,
     /// 0 low, 1 normal, 2 critical.
     pub urgency: u8,
     pub value: Option<f32>,
@@ -60,6 +62,7 @@ impl Note {
             body: body.into(),
             actions: Vec::new(),
             has_default: false,
+            desktop: None,
             urgency: 1,
             value: None,
             tag: None,
