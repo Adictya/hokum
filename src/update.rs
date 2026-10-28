@@ -185,7 +185,8 @@ fn sha256(path: &Path) -> Option<String> {
 /// The running executable's sha256 (its inode, even after the file was replaced).
 fn running() -> Option<&'static str> {
     static SHA: OnceLock<Option<String>> = OnceLock::new();
-    SHA.get_or_init(|| sha256(Path::new("/proc/self/exe")).or_else(|| sha256(exe()))).as_deref()
+    // `/proc/self` in sha256sum would be sha256sum itself.
+    SHA.get_or_init(|| sha256(&PathBuf::from(format!("/proc/{}/exe", std::process::id()))).or_else(|| sha256(exe()))).as_deref()
 }
 
 fn agent(timeout: Duration) -> ureq::Agent {
