@@ -429,7 +429,6 @@ ${products.map((p) => `      <a class="menu-item" href="${p.url}">${productIcon(
 <main>
 <section class="intro">
   <h1>Notifications for Wayland.</h1>
-  <p class="lede">A replacement for mako, dunst and swaync. Themes, per-app rules and Do not disturb, all in one config file.</p>
   <div class="install" role="group" aria-label="Install">
     <div class="install-meta">
       <details class="pick">
