@@ -30,10 +30,10 @@ template "card" {
         text "{time}" size=11 color="faint"
         close
     }
-    col gap=3 indent=#true {
+    col gap=3 {
         if "summary" { text "{summary}" size=15 weight="title" }
         if "body" { text "{body}" color="muted" lines=5 }
         if "value" { progress }
     }
-    actions indent=#true
+    actions
 }

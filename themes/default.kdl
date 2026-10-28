@@ -8,7 +8,7 @@ template "card" {
         text "{time}" size=11 color="faint"
         close
     }
-    row gap=10 indent=#true {
+    row gap=10 {
         col gap=2 grow=#true {
             if "summary" { text "{summary}" weight="title" }
             if "body" { text "{body}" color="muted" lines=8 }
@@ -16,5 +16,5 @@ template "card" {
         }
         if "image" { image width=44 height=44 radius=8 }
     }
-    actions indent=#true
+    actions
 }
