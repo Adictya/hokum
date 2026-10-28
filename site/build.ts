@@ -320,15 +320,90 @@ const hokumProductIcon = `<svg viewBox="0 0 32 32" aria-hidden="true"><rect widt
 const anomalyMark = `<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="currentColor"><rect x="3" y="3" width="5" height="5" rx="1"/><rect x="10" y="3" width="5" height="5" rx="1"/><rect x="3" y="10" width="5" height="5" rx="1"/><rect x="10" y="10" width="5" height="5" rx="1"/><rect x="3" y="17" width="5" height="5" rx="1"/><rect x="10" y="17" width="5" height="5" rx="1"/><rect x="17.5" y="15.5" width="5" height="5" rx="1" transform="rotate(14 20 18)"/></g></svg>`
 const opencodeMark = `<svg viewBox="0 0 16 20" aria-hidden="true"><path d="M2 2h12v16H2z" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M5.2 10h5.6v4.8H5.2z" fill="currentColor" opacity=".5"/></svg>`
 
-// The install CTA: one panel per platform; site.js picks the visitor's (Arch unless the browser
-// says Ubuntu, Debian or Fedora), the tabs switch.
+// The install spec sheet: Platform, Install, Config, Requires. Platform and CPU are
+// radios, so the sheet switches without JavaScript; site.js picks the visitor's platform (Arch
+// unless the browser says Ubuntu, Debian or Fedora) and copies.
 const arch = installTabs.find((t) => t.id === "arch")!
-const installPanels = [
-  { id: "arch", label: "Arch", html: `<div class="command"><code>${escape(arch.code)}</code><button type="button" data-copy="${escape(arch.code)}">Copy</button></div><p class="cta-note">From the AUR. Then <code>${escape(serviceCode)}</code>, or let D-Bus start it on the first notification.</p>` },
-  { id: "debian", label: "Debian / Ubuntu", html: `<a class="download" href="${release}/linux-x64-deb"><span>Download .deb</span><span aria-hidden="true">↓</span></a><p class="cta-note">x86_64 · <a href="${release}/linux-arm64-deb">ARM64</a>. Install with <code>sudo apt install ./hokum.deb</code>.</p>` },
-  { id: "fedora", label: "Fedora / openSUSE", html: `<a class="download" href="${release}/linux-x64-rpm"><span>Download .rpm</span><span aria-hidden="true">↓</span></a><p class="cta-note">x86_64 · <a href="${release}/linux-arm64-rpm">ARM64</a>. Install with <code>sudo dnf install ./hokum.rpm</code>.</p>` },
-  { id: "binary", label: "Other Linux", html: `<a class="download" href="${release}/linux-x64"><span>Download the binary</span><span aria-hidden="true">↓</span></a><p class="cta-note">x86_64 · <a href="${release}/linux-arm64">ARM64</a> · <a href="${repo}/releases" rel="noopener">GitHub Releases</a>. Needs a Wayland compositor with layer shell.</p>` },
+const platforms = [
+  { id: "arch", label: "Arch" },
+  { id: "debian", label: "Debian/Ubuntu" },
+  { id: "fedora", label: "Fedora/openSUSE" },
+  { id: "binary", label: "Other Linux" },
 ]
+const cpus = [
+  { id: "x64", label: "x86_64" },
+  { id: "arm64", label: "aarch64" },
+]
+const fetchAndInstall = (cpu: string) => ({
+  debian: `curl -fLo /tmp/hokum.deb ${release}/linux-${cpu}-deb && sudo apt install /tmp/hokum.deb`,
+  fedora: `curl -fLo /tmp/hokum.rpm ${release}/linux-${cpu}-rpm && sudo dnf install /tmp/hokum.rpm`,
+  binary: `curl -fL --create-dirs -o ~/.local/bin/hokum ${release}/linux-${cpu} && chmod +x ~/.local/bin/hokum`,
+})
+const configPath = "~/.config/hokum/config.kdl"
+
+const copyIcon = `<svg class="i-copy" viewBox="0 0 16 16" aria-hidden="true"><rect x="5.25" y="5.25" width="8" height="8" rx="1.75" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M10.75 3.25v-.5a1.5 1.5 0 0 0-1.5-1.5h-5.5a1.5 1.5 0 0 0-1.5 1.5v5.5a1.5 1.5 0 0 0 1.5 1.5h.5" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>`
+const checkIcon = `<svg class="i-check" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`
+const copyButton = (text: string, what: string) =>
+  `<button type="button" class="sp-copy" data-copy="${escape(text)}" aria-label="Copy ${escape(what)}">${copyIcon}${checkIcon}<span class="sp-label" aria-hidden="true">Copy</span></button>`
+
+// A command as the sheet shows it: `&&` starts a new line, and the release URL's common prefix is
+// dimmed so the file name stands out. The copy button copies it as one line.
+const commandHtml = (code: string, prompt = true) => {
+  const lines = code
+    .split(" && ")
+    .flatMap((part, i) => {
+      const at = part.indexOf(release)
+      const head = i ? `&& ${part}` : part
+      if (at < 0) return [escape(head)]
+      const url = part.slice(at).split(" ")[0]
+      const before = head.slice(0, head.indexOf(url)).trimEnd()
+      const after = head.slice(head.indexOf(url) + url.length).trim()
+      return [escape(before), `<span class="sp-dim">${escape(release).replace(/(?<=\w)\//g, "/<wbr>")}/<wbr></span>${escape(url.slice(release.length + 1))}${after ? ` ${escape(after)}` : ""}`]
+    })
+    .map((l) => l.replace(/^&amp;&amp;/, '<span class="sp-op">&amp;&amp;</span>'))
+  return `<code class="sp-code${prompt ? " sp-prompt" : ""}">${lines
+    .map((l, i) => `<span class="sp-ln${i ? " sp-cont" : ""}${i && !l.startsWith('<span class="sp-op">') ? " sp-arg" : ""}">${l}${i < lines.length - 1 ? '&nbsp;<span class="sp-op">\\</span>' : ""}</span>`)
+    .join("")}</code>`
+}
+const value = (cls: string, code: string, what: string, prompt = true) =>
+  `<div class="sp-value ${cls}">${commandHtml(code, prompt)}${copyButton(code, what)}</div>`
+const link = (href: string, text: string, external = false) =>
+  `<a href="${href}"${external ? ' rel="noopener"' : ""}>${text}</a>`
+const cpuChips = `<span class="sp-chips sp-cpus">${cpus.map((c) => `<label for="cpu-${c.id}">${c.label}</label>`).join("")}</span>`
+
+const installValues = [
+  value("v-arch", arch.code, "the Arch install command"),
+  ...(["debian", "fedora", "binary"] as const).flatMap((p) =>
+    cpus.map((c) => value(`v-${p}-${c.id}`, fetchAndInstall(c.id)[p], `the ${platforms.find((x) => x.id === p)!.label} ${c.label} install command`)),
+  ),
+].join("")
+const fileLinks = (suffix: string, label: string) =>
+  cpus.map((c) => `<span class="sp-file v-${c.id}">${link(`${release}/linux-${c.id}${suffix}`, `${label} <span aria-hidden="true">↓</span>`)}</span>`).join("")
+const installNotes = [
+  `<p class="sp-note v-arch"><span>AUR</span><span class="sp-sep" aria-hidden="true">·</span>${link("https://aur.archlinux.org/packages/hokum-bin", "hokum-bin", true)}</p>`,
+  `<p class="sp-note v-debian">${cpuChips}<span class="sp-sep" aria-hidden="true">·</span>${fileLinks("-deb", ".deb")}</p>`,
+  `<p class="sp-note v-fedora">${cpuChips}<span class="sp-sep" aria-hidden="true">·</span>${fileLinks("-rpm", ".rpm")}</p>`,
+  `<p class="sp-note v-binary">${cpuChips}<span class="sp-sep" aria-hidden="true">·</span>${fileLinks("", "executable")}<span class="sp-sep" aria-hidden="true">·</span>${link(`${repo}/releases`, "GitHub releases ↗", true)}</p>`,
+].join("")
+
+const specSheet = `<div class="spec" role="group" aria-label="Install Hokum">
+${platforms.map((p, i) => `    <input type="radio" name="platform" id="p-${p.id}" aria-label="${escape(p.label)}"${i === 0 ? " checked" : ""}>`).join("\n")}
+${cpus.map((c, i) => `    <input type="radio" name="cpu" id="cpu-${c.id}" aria-label="${c.label}"${i === 0 ? " checked" : ""}>`).join("\n")}
+    <div class="sheet">
+      <div class="sp-head"><span><b>hokum</b> ${escape(version)}</span><span>linux · wayland</span><span>MIT</span></div>
+      <dl>
+        <div class="sp-row sp-platform"><dt>Platform</dt><dd><span class="sp-chips">${platforms.map((p) => `<label for="p-${p.id}">${escape(p.label)}</label>`).join("")}</span></dd></div>
+        <div class="sp-row"><dt>Install</dt><dd>${installValues}${installNotes}</dd></div>
+        <div class="sp-row"><dt>Config</dt><dd>${value("v-all", configPath, "the config path", false)}<p class="sp-note">KDL. ${link("#configure", "Reference")} <span class="sp-sep" aria-hidden="true">·</span> ${link("#themes", "Themes")}</p></dd></div>
+        <div class="sp-row"><dt>Requires</dt><dd><ul class="sp-reqs">
+          <li><code>wayland</code><span>Compositor with layer-shell: niri, sway, Hyprland, river…</span></li>
+          <li><code>vulkan</code><span>A Vulkan driver</span></li>
+          <li><code>glibc</code><span>2.39 or newer</span></li>
+        </ul></dd></div>
+      </dl>
+    </div>
+    <span class="sr-only" aria-live="polite" id="copy-status"></span>
+  </div>`
 
 const clipTiles = [
   { id: "themes", title: "Eight themes built in", line: "One line of config switches the look. Or have your agent write a new one." },
@@ -392,13 +467,8 @@ ${products.map((p) => `      <a class="menu-item" href="${p.url}">${productIcon(
 
 <main>
 <section class="intro">
-  <h1>Notifications that look like they belong on a computer from this decade.</h1>
-  <p class="lede">A notification daemon for Wayland: niri, sway, Hyprland, river and every other compositor with layer shell. Eight themes, one config file, cards on springs.</p>
-  <div class="cta" role="group" aria-label="Install">
-${installPanels.map((t, i) => `    <input type="radio" name="platform" id="p-${t.id}"${i === 0 ? " checked" : ""}>`).join("\n")}
-${installPanels.map((t) => `    <div class="panel" id="panel-${t.id}">${t.html}</div>`).join("\n")}
-    <div class="platforms">${installPanels.map((t) => `<label for="p-${t.id}">${escape(t.label)}</label>`).join("")}</div>
-  </div>
+  <h1>Notifications for Wayland.</h1>
+  ${specSheet}
 </section>
 
 <section class="clips" aria-label="Features">

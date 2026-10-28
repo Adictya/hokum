@@ -141,26 +141,72 @@ h1, h2, h3 { text-wrap: balance; }
 .intro { width: min(100% - 40px, 760px); margin: 0 auto; padding: 44px 0 0; text-align: center; }
 .intro h1 { margin: 0; font-size: clamp(28px, 3.6vw, 44px); line-height: 1.1; letter-spacing: -0.035em; font-weight: 650; }
 .lede { margin: 14px auto 0; max-width: 40em; color: var(--muted); font-size: 16.5px; line-height: 1.55; text-wrap: pretty; }
-.cta { margin-top: 26px; display: flex; flex-direction: column; align-items: center; }
-.cta input { position: absolute; opacity: 0; pointer-events: none; }
-.panel { display: none; flex-direction: column; align-items: center; gap: 12px; }
-#p-arch:checked ~ #panel-arch, #p-debian:checked ~ #panel-debian, #p-fedora:checked ~ #panel-fedora, #p-binary:checked ~ #panel-binary { display: flex; }
-#p-arch:checked ~ .platforms [for="p-arch"], #p-debian:checked ~ .platforms [for="p-debian"],
-#p-fedora:checked ~ .platforms [for="p-fedora"], #p-binary:checked ~ .platforms [for="p-binary"] { color: var(--fg); background: var(--raised-2); }
-.cta input:focus-visible ~ .platforms { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 10px; }
-.command { display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 18px; border-radius: 14px; background: var(--fg); color: #0c0c0f; box-shadow: 0 12px 40px rgb(0 0 0 / 0.35); }
-.command code { font: 500 16px/1 var(--mono); background: none; padding: 0; white-space: nowrap; }
-.command code::before { content: "$ "; opacity: 0.4; }
-.command button { height: 36px; padding: 0 14px; border-radius: 10px; background: rgb(0 0 0 / 0.07); font-size: 13px; font-weight: 600; }
-.command button:hover { background: rgb(0 0 0 / 0.12); }
-.download { display: grid; grid-template-columns: auto 18px; justify-content: center; align-items: center; gap: 10px; min-width: 230px; height: 50px; padding: 0 18px; border-radius: 14px; background: var(--fg); color: #0c0c0f; font-size: 15px; font-weight: 600; box-shadow: 0 12px 40px rgb(0 0 0 / 0.35); transition: transform 0.15s; }
-.download:hover { transform: translateY(-1px); }
-.cta-note { margin: 0; font-size: 13.5px; color: var(--muted); }
-.cta-note a { color: var(--fg); border-bottom: 1px solid var(--line-strong); }
-.cta-note code { font-size: 12.5px; }
-.platforms { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px; margin-top: 16px; padding: 3px; border-radius: 10px; }
-.platforms label { padding: 5px 11px; border-radius: 8px; font-size: 13px; font-weight: 500; color: var(--faint); cursor: pointer; }
-.platforms label:hover { color: var(--fg); }
+/* The install spec sheet. Radios before .sheet pick the platform and CPU; everything else is CSS. */
+.spec { margin: 30px auto 0; max-width: 760px; text-align: left; }
+.spec > input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.sheet { border: 1px solid var(--line-strong); border-radius: 14px; background: linear-gradient(rgb(255 255 255 / 0.025), rgb(255 255 255 / 0.01)); box-shadow: 0 24px 60px -30px rgb(0 0 0 / 0.7); overflow: hidden; }
+.sp-head { display: flex; gap: 18px; align-items: center; height: 34px; padding: 0 16px; border-bottom: 1px solid var(--line); font: 500 11px/1 var(--mono); letter-spacing: 0.04em; text-transform: uppercase; color: var(--faint); }
+.sp-head b { color: var(--muted); font-weight: 500; }
+.sp-head span:last-child { margin-left: auto; }
+.sheet dl { margin: 0; }
+.sp-row { display: grid; grid-template-columns: 108px minmax(0, 1fr); border-top: 1px solid var(--line); }
+.sp-row:first-child { border-top: 0; }
+.sp-row dt { padding: 17px 0 0 16px; font: 500 11px/20px var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--faint); }
+.sp-row dd { margin: 0; padding: 12px 12px 12px 0; min-width: 0; }
+
+/* A value: the command, then its copy button. */
+.sp-value { display: flex; align-items: flex-start; gap: 12px; }
+.sp-code, :not(pre) > code.sp-code { flex: 1; min-width: 0; padding: 5px 0; font: 400 13px/20px var(--mono); color: var(--fg); background: none; border-radius: 0; user-select: all; -webkit-user-select: all; }
+.sp-prompt { padding-left: 2ch !important; }
+.sp-ln { display: block; padding-left: 2ch; text-indent: -2ch; white-space: pre-wrap; }
+.sp-prompt .sp-ln:first-child { text-indent: -4ch; }
+.sp-ln.sp-arg { padding-left: 4ch; }
+.sp-prompt .sp-ln:first-child::before { content: "$ "; color: var(--faint); user-select: none; -webkit-user-select: none; }
+.sp-dim, .sp-op { color: var(--faint); }
+.sp-copy { flex: none; display: inline-flex; align-items: center; gap: 6px; height: 30px; min-width: 78px; padding: 0 10px 0 9px; border-radius: 8px; border: 1px solid var(--line-strong); color: var(--muted); font: 500 12px/1 var(--sans); transition: color 0.15s, border-color 0.15s, background 0.15s; }
+.sp-copy:hover { color: var(--fg); border-color: rgb(255 255 255 / 0.26); background: var(--raised-2); }
+.sp-copy:active { transform: translateY(0.5px); }
+.sp-copy svg { width: 14px; height: 14px; flex: none; }
+.sp-copy .i-check { display: none; }
+.sp-copy[data-state="copied"] { color: #8ee6b0; border-color: rgb(142 230 176 / 0.35); background: rgb(142 230 176 / 0.07); }
+.sp-copy[data-state="copied"] .i-copy { display: none; }
+.sp-copy[data-state="copied"] .i-check { display: block; }
+.sp-copy[data-state="failed"] { color: #f2c46d; border-color: rgb(242 196 109 / 0.35); }
+
+/* Notes under a value: CPU chips, direct downloads, references. */
+.sp-note { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 6px 0 2px; font-size: 13px; line-height: 20px; color: var(--muted); }
+.sp-note a { color: var(--fg); border-bottom: 1px solid var(--line-strong); transition: border-color 0.15s; }
+.sp-note a:hover { border-color: var(--fg); }
+.sp-note code { font-size: 12px; }
+.sp-sep { color: var(--faint); }
+.sp-file a { font-family: var(--mono); font-size: 12.5px; }
+
+.sp-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.sp-platform dd { padding: 12px 12px 12px 0; }
+.sp-chips label { display: inline-flex; align-items: center; height: 30px; padding: 0 11px; border-radius: 8px; border: 1px solid var(--line); font: 500 12.5px/1 var(--mono); color: var(--muted); cursor: pointer; user-select: none; -webkit-user-select: none; transition: color 0.15s, border-color 0.15s, background 0.15s; }
+.sp-chips label:hover { color: var(--fg); border-color: var(--line-strong); }
+.sp-cpus { gap: 4px; }
+.sp-cpus label { height: 24px; padding: 0 8px; border-radius: 6px; font-size: 11.5px; }
+
+#p-arch:checked ~ .sheet [for="p-arch"], #p-debian:checked ~ .sheet [for="p-debian"],
+#p-fedora:checked ~ .sheet [for="p-fedora"], #p-binary:checked ~ .sheet [for="p-binary"],
+#cpu-x64:checked ~ .sheet [for="cpu-x64"], #cpu-arm64:checked ~ .sheet [for="cpu-arm64"] { color: var(--bg); background: var(--fg); border-color: var(--fg); }
+#p-arch:focus-visible ~ .sheet [for="p-arch"], #p-debian:focus-visible ~ .sheet [for="p-debian"],
+#p-fedora:focus-visible ~ .sheet [for="p-fedora"], #p-binary:focus-visible ~ .sheet [for="p-binary"],
+#cpu-x64:focus-visible ~ .sheet [for="cpu-x64"], #cpu-arm64:focus-visible ~ .sheet [for="cpu-arm64"] { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Which values show. */
+.sheet [class*="v-arch"], .sheet [class*="v-debian"], .sheet [class*="v-fedora"], .sheet [class*="v-binary"], .sp-file { display: none; }
+#p-arch:checked ~ .sheet .v-arch, #p-debian:checked ~ .sheet .v-debian, #p-fedora:checked ~ .sheet .v-fedora, #p-binary:checked ~ .sheet .v-binary,
+#p-debian:checked ~ #cpu-x64:checked ~ .sheet .v-debian-x64, #p-debian:checked ~ #cpu-arm64:checked ~ .sheet .v-debian-arm64,
+#p-fedora:checked ~ #cpu-x64:checked ~ .sheet .v-fedora-x64, #p-fedora:checked ~ #cpu-arm64:checked ~ .sheet .v-fedora-arm64,
+#p-binary:checked ~ #cpu-x64:checked ~ .sheet .v-binary-x64, #p-binary:checked ~ #cpu-arm64:checked ~ .sheet .v-binary-arm64 { display: flex; }
+#cpu-x64:checked ~ .sheet .sp-file.v-x64, #cpu-arm64:checked ~ .sheet .sp-file.v-arm64 { display: inline; }
+
+.sp-reqs { display: grid; gap: 4px; margin: 0; padding: 5px 0; list-style: none; }
+.sp-reqs li { display: grid; grid-template-columns: 7ch minmax(0, 1fr); gap: 12px; font-size: 13.5px; line-height: 20px; color: var(--muted); }
+.sp-reqs code { padding: 0; background: none; font-size: 12.5px; color: var(--fg); }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
 /* ---- Feature clips: live mini desktops (clips.js) ---- */
 .clips { width: var(--page); margin: 112px auto 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; }
@@ -279,7 +325,18 @@ td code { white-space: nowrap; }
   .intro { padding-top: 28px; }
   .intro h1 { font-size: 27px; }
   .lede { font-size: 15px; }
-  .command code { font-size: 15px; }
+  .spec { margin: 24px -6px 0; }
+  .sp-row { position: relative; }
+  .sp-value .sp-copy { position: absolute; top: 6px; right: 8px; }
+  .sp-head span:nth-child(2) { display: none; }
+  .sp-row { grid-template-columns: minmax(0, 1fr); }
+  .sp-row dt { padding: 12px 12px 0 14px; line-height: 16px; }
+  .sp-row dd, .sp-platform dd { padding: 6px 10px 12px 14px; }
+  .sp-code, :not(pre) > code.sp-code { font-size: 12px; }
+  .sp-platform .sp-chips { display: grid; grid-template-columns: 1fr 1fr; }
+  .sp-platform .sp-chips label { justify-content: center; }
+  .sp-copy { min-width: 0; width: 30px; padding: 0; justify-content: center; }
+  .sp-copy .sp-label { display: none; }
   .clips { grid-template-columns: 1fr; margin-top: 80px; }
   .clip-screen { height: 250px; }
   .clip-stack { zoom: 0.8; }
@@ -288,4 +345,8 @@ td code { white-space: nowrap; }
   .prompt { padding: 16px 16px 58px; }
   .prompt .copy { top: auto; bottom: 12px; transform: none; }
   .foot { margin-top: 88px; }
+}
+@media (max-width: 720px) {
+  .sp-copy[data-state] { width: auto; padding: 0 9px; }
+  .sp-copy[data-state] .sp-label { display: inline; }
 }
