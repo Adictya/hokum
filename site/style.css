@@ -6,6 +6,7 @@
 @font-face { font-family: "Valkyrie"; src: url("/assets/valkyrie-bold.woff2") format("woff2"); font-weight: 700; font-display: swap; }
 @font-face { font-family: "Valkyrie Caps"; src: url("/assets/valkyrie-caps.woff2") format("woff2"); font-weight: 400; font-display: swap; }
 @font-face { font-family: "Commit Mono"; src: url("/assets/commit-mono.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }
+@font-face { font-family: "IBM Plex Mono"; src: url("/assets/ibm-plex-mono-400.woff2") format("woff2"); font-weight: 400; font-display: swap; }
 @font-face { font-family: "Inter"; src: url("/assets/inter.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }
 
 :root {
@@ -45,7 +46,7 @@ h1, h2, h3 { text-wrap: balance; font-weight: 400; }
   --muted: rgb(255 255 255 / 0.62);
   --faint: rgb(255 255 255 / 0.40);
   --danger: #ef6f6f;
-  position: relative; display: flex; flex-direction: column; min-height: max(100svh, 640px); isolation: isolate;
+  position: relative; isolation: isolate;
   color: var(--fg); background: #000;
 }
 .wall { position: absolute; inset: 0; pointer-events: none; }
@@ -120,8 +121,9 @@ h1, h2, h3 { text-wrap: balance; font-weight: 400; }
 .controls button:hover, .controls button:focus-visible { color: var(--fg); }
 .desk.end #skip { display: none; }
 
-.split { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: clamp(40px, 7vw, 112px); align-items: center; width: var(--wrap); margin: 0 auto; padding: 24px 0 72px; }
-.intro h1 { margin: 0; max-width: 7.6em; font: 400 clamp(56px, 6.6vw, 96px)/0.98 var(--serif); letter-spacing: -0.035em; color: var(--fg); }
+/* Anchored under the header, not centred: a modest gap that grows a little with the screen. */
+.split { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: clamp(40px, 7vw, 112px); align-items: start; width: var(--wrap); margin: 0 auto; padding-top: clamp(64px, 10vh, 110px); }
+.intro h1 { margin: 6px 0 0; max-width: 7.6em; font: 400 clamp(56px, 6.6vw, 96px)/0.98 var(--serif); letter-spacing: -0.035em; color: var(--fg); }
 
 /* The story: a fixed-height column, so the stack never moves the page. */
 .desk { position: relative; height: clamp(440px, 62svh, 580px); }
@@ -157,22 +159,20 @@ h1, h2, h3 { text-wrap: balance; font-weight: 400; }
 #arm:checked ~ .inst-line .cpu .arm64 { display: inline; }
 .cpu span::after { content: " ⇄"; opacity: 0.6; }
 
-/* ---- Footer ---- */
-.foot { width: var(--wrap); margin: 0 auto; padding: 26px 0 40px; border-top: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 16px 32px; align-items: center; justify-content: space-between; font: 13px/1.6 var(--mono); color: var(--faint); }
-.foot-brand { display: flex; align-items: center; gap: 9px; font: 17px/1 var(--serif); color: var(--fg); }
-.foot-brand svg { width: 17px; height: 17px; }
-.foot nav { display: flex; flex-wrap: wrap; gap: 8px 24px; flex: 1; }
-.foot nav a:hover, .built:hover { color: var(--fg); }
-.built { display: inline-flex; align-items: center; gap: 8px; color: var(--faint); }
-.built svg { width: 10px; height: 13px; color: var(--fg); }
-.built b { color: var(--fg); font-weight: 500; }
+/* ---- Footer: opentunnel's, exactly. The Anomaly copyright, as on the opencode console: the
+   signature sits faintly behind the line, both centred. ---- */
+.site-footer { display: flex; justify-content: center; margin-top: 128px; padding: 0 0 64px; }
+.copyright { position: relative; color: #909090; font: 400 13px/24px "IBM Plex Mono", monospace; font-variant-numeric: normal; }
+.copyright .signature { display: block; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; }
+.copyright p { position: relative; margin: 0; }
+.copyright a { color: inherit; text-decoration: underline rgba(255, 255, 255, .2); text-underline-offset: 2px; }
 
 @media (max-width: 860px) {
-  .split { grid-template-columns: 1fr; gap: 48px; align-items: start; padding: 32px 0 48px; }
+  .split { grid-template-columns: 1fr; gap: 48px; padding-top: 40px; }
   .desk { width: 100%; max-width: 420px; height: 470px; }
 }
 @media (max-width: 720px) {
-  .first { min-height: 0; }
+  .site-footer { margin-top: 80px; padding-bottom: 48px; }
   .top { height: 60px; }
   .top-github span { display: none; }
   .card { padding: 14px; border-radius: 22px; }

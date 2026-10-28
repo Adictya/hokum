@@ -232,13 +232,12 @@ for (const m of installMd.slice(0, installMd.indexOf("Hokum starts through D-Bus
 }
 // No Hokum logo yet: the favicon is a plain lettermark.
 const favicon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#111114"/><text x="16" y="22.5" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="19" font-weight="700" fill="#f2f2ef">H</text></svg>`
+// The Anomaly signature behind the copyright line, as on opentunnel.xyz (and the opencode console).
+const signature = readFileSync(join(site, "footer-signature.svg"), "utf8")
 const githubIcon = `<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>`
 
 const productIcon = (p: { icon: string }) => `<svg viewBox="0 0 32 32" aria-hidden="true">${p.icon}</svg>`
 const hokumProductIcon = `<svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#26263a"/><text x="16" y="22" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="17" font-weight="700" fill="#fff">H</text></svg>`
-// Anomaly's mark, drawn: a grid with one thing out of place.
-const anomalyMark = `<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="currentColor"><rect x="3" y="3" width="5" height="5" rx="1"/><rect x="10" y="3" width="5" height="5" rx="1"/><rect x="3" y="10" width="5" height="5" rx="1"/><rect x="10" y="10" width="5" height="5" rx="1"/><rect x="3" y="17" width="5" height="5" rx="1"/><rect x="10" y="17" width="5" height="5" rx="1"/><rect x="17.5" y="15.5" width="5" height="5" rx="1" transform="rotate(14 20 18)"/></g></svg>`
-const opencodeMark = `<svg viewBox="0 0 16 20" aria-hidden="true"><path d="M2 2h12v16H2z" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M5.2 10h5.6v4.8H5.2z" fill="currentColor" opacity=".5"/></svg>`
 
 // The install row: a tab per platform and one `$` command, as opentunnel does it. site.js picks
 // the visitor's platform (Arch unless the browser says Ubuntu, Debian or Fedora) and switches
@@ -315,13 +314,11 @@ ${products.map((p) => `        <a class="menu-item" href="${p.url}">${productIco
   </div>
 </div>
 
-<footer class="foot">
-  <a class="foot-brand" href="https://anoma.ly">${anomalyMark}<span>Anomaly</span></a>
-  <nav>
-    <a href="${repo}" rel="noopener">GitHub</a>
-    <a href="${repo}/blob/dev/LICENSE" rel="noopener">MIT License</a>
-  </nav>
-  <a class="built" href="https://opencode.ai" rel="noopener">${opencodeMark}<span>Built with <b>opencode</b></span></a>
+<footer class="site-footer">
+  <div class="copyright">
+    ${signature}
+    <p>©${new Date().getFullYear()} <a href="https://anoma.ly">anomaly</a>. all rights reserved</p>
+  </div>
 </footer>
 <script src="/story.js"></script>
 <script src="/hero.js"></script>
