@@ -172,7 +172,7 @@ ${intro}
 This is ${origin}, the whole site as one markdown document: installing and using Hokum, the
 configuration reference, the complete guide to writing a theme, and the source of every
 built-in theme. Browsers get the same page as HTML, which opens on a crime story told entirely
-in notification cards, stacking up in the corner of a desktop, with one of five endings picked at
+in notification cards, stacking up in the corner of a desktop, with one of four endings picked at
 random. Below the story is one picture of the settings window, where you pick a theme. If you are a coding agent asked to make a
 Hokum theme, read [Writing a theme](#${anchors.get("themes#")}) and
 [Checking your work](#${anchors.get("themes#checking-your-work")}), then write the theme file
@@ -290,7 +290,7 @@ const html = `<!doctype html>
   <div class="wall" aria-hidden="true"><div class="stars"></div></div>
   <header class="top">
     <a class="wordmark" href="/">Hokum</a>
-    <a class="top-github" href="${repo}" rel="noopener">${githubIcon}<span>GitHub</span></a>
+    <a class="top-github" href="${repo}" rel="noopener">${githubIcon}<span>github</span></a>
   </header>
   <div class="split">
     <section class="intro" id="intro">

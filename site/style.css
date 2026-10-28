@@ -62,9 +62,9 @@ h1, h2, h3 { text-wrap: balance; font-weight: 400; }
 
 .top { position: relative; z-index: 10; display: flex; align-items: center; justify-content: space-between; width: var(--wrap); height: 76px; margin: 0 auto; }
 .wordmark { font: 19px/1 var(--serif); color: var(--fg); }
-.top-github { display: flex; align-items: center; gap: 8px; font: 17px/1 var(--serif); color: var(--muted); }
+.top-github { display: flex; align-items: center; gap: 8px; font: 400 13px/24px "IBM Plex Mono", monospace; color: #909090; }
 .top-github:hover { color: var(--fg); }
-.top-github svg { width: 17px; height: 17px; }
+.top-github svg { width: 14px; height: 14px; }
 
 .card {
   position: absolute; top: 0; left: 0; width: var(--w, 420px);
@@ -106,7 +106,7 @@ h1, h2, h3 { text-wrap: balance; font-weight: 400; }
 .intro h1 { margin: 0; max-width: 7.6em; font: 400 clamp(56px, 6.6vw, 96px)/0.98 var(--serif); letter-spacing: -0.035em; color: var(--fg); }
 
 /* The story: a fixed-height column, so the stack never moves the page. */
-.desk { position: relative; height: clamp(440px, 54svh, 520px); }
+.desk { position: relative; height: 512px; }
 .stack { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
 .clock { position: absolute; top: 0; left: 0; right: 0; height: 22px; padding: 0 2px; display: flex; justify-content: flex-end; font: 12px/22px var(--mono); color: #5a5652; font-variant-numeric: tabular-nums; white-space: pre; border-bottom: 1px solid #141414; }
 /* Nothing while the story plays; Replay once it has ended. */
@@ -148,7 +148,7 @@ h1, h2, h3 { text-wrap: balance; font-weight: 400; }
 .cpu span::after { content: " ⇄"; opacity: 0.6; }
 
 /* The one picture: the settings window. */
-.shot { width: var(--wrap); margin: 56px auto 0; }
+.shot { width: var(--wrap); margin: 24px auto 0; }
 .shot img { display: block; width: 100%; height: auto; border-radius: 12px; border: 1px solid #1c1c1c; background: #0a0a0a; }
 
 /* ---- Footer: opentunnel's, exactly. The Anomaly copyright, as on the opencode console: the

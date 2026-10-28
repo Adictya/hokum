@@ -1,6 +1,6 @@
 ;(() => {
   // The trunk, then one of the branches: random per visit, a different one on each replay,
-  // or the one `?branch=` names (1–5 or its key).
+  // or the one `?branch=` names (1–4 or its key).
   const TRUNK = window.STORY_TRUNK
   const BRANCHES = window.STORY_BRANCHES
   const KEYS = Object.keys(BRANCHES)
@@ -60,8 +60,6 @@
     Bank: ["#475569", W("M4.8 8.2L10 5l5.2 3.2M6.3 9.6v4.2M10 9.6v4.2M13.7 9.6v4.2M4.8 15.2h10.4")],
     Mobile: ["#64748b", `<rect x="5" y="11.5" width="2" height="3.5" rx=".6" fill="#fff"/><rect x="8.2" y="9" width="2" height="6" rx=".6" fill="#fff"/><rect x="11.4" y="6.5" width="2" height="8.5" rx=".6" fill="#fff" opacity=".45"/><rect x="14.6" y="4.5" width="2" height="10.5" rx=".6" fill="#fff" opacity=".45"/>`],
     WhatsApp: ["#25d366", W("M6.2 14.2l.7-2.2A4.9 4.9 0 1 1 8.8 14z")],
-    Uber: ["#000", `<text x="10" y="13.6" text-anchor="middle" font-size="9.5" font-weight="600" fill="#fff" font-family="Inter,system-ui">U</text>`],
-    Zillow: ["#006aff", W("M5 9.6L10 5.4l5 4.2M6.6 8.4v6.2h6.8V8.4")],
     News: ["#fa2d48", `<path d="M6.2 14.6V5.4l7.6 9.2V5.4" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"/>`],
     "Mission Control": ["#1e293b", `<path d="M10 3.8c2 1.4 2.8 3.6 2.6 6.6l1.6 2v1.8l-2.4-.9H8.2l-2.4.9v-1.8l1.6-2C7.2 7.4 8 5.2 10 3.8z" fill="#fff"/><circle cx="10" cy="8.4" r="1.1" fill="#1e293b"/><path d="M9 14.6l1 1.8 1-1.8" fill="#ff9f0a"/>`],
     ChatGPT: ["#10a37f", [0, 60, 120].map((a) => `<ellipse cx="10" cy="10" rx="5.6" ry="2.6" fill="none" stroke="#fff" stroke-width="1.4" transform="rotate(${a} 10 10)"/>`).join("")],
@@ -70,16 +68,12 @@
     Forbes: ["#111", `<path d="M7.4 5.6h5.4M8.8 5.6v8.8M8.8 9.8h3.2M7.4 14.4h3" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>`],
     "Lake Man 2032": ["#b91c1c", `<path d="M10 4.8l1.5 3.2 3.5.4-2.6 2.4.7 3.5L10 12.6l-3.1 1.7.7-3.5L5 8.4l3.5-.4z" fill="#fff"/>`],
     WITSEC: ["#1e3a8a", `<path d="M10 4.4l4.6 1.8v3.6c0 3-2 4.9-4.6 5.8-2.6-.9-4.6-2.8-4.6-5.8V6.2z" fill="none" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/><path d="M10 7.6l.8 1.7 1.8.2-1.4 1.2.4 1.8-1.6-.9-1.6.9.4-1.8-1.4-1.2 1.8-.2z" fill="#fff"/>`],
-    Wallet: ["#111", `<rect x="5" y="6" width="10" height="3" rx="1" fill="#f59e0b"/><rect x="5" y="8" width="10" height="3" rx="1" fill="#22c55e"/><rect x="5" y="10" width="10" height="4.5" rx="1.2" fill="#3b82f6"/>`],
-    Podcasts: ["#9333ea", `<circle cx="10" cy="8.6" r="1.6" fill="#fff"/><path d="M7.2 11.4a4 4 0 1 1 5.6 0M5.6 13a6.2 6.2 0 1 1 8.8 0" fill="none" stroke="#fff" stroke-width="1.3" stroke-linecap="round"/><path d="M9.2 11h1.6l-.3 4h-1z" fill="#fff"/>`],
-    Netflix: ["#000", `<path d="M7.2 4.8h2l3.6 10.4h-2zM7.2 4.8h2v10.4h-2zM10.8 4.8h2v10.4h-2z" fill="#e50914"/>`],
-    Instagram: ["#d62976", `<rect x="5.4" y="5.4" width="9.2" height="9.2" rx="2.8" fill="none" stroke="#fff" stroke-width="1.4"/><circle cx="10" cy="10" r="2.2" fill="none" stroke="#fff" stroke-width="1.4"/><circle cx="12.9" cy="7.1" r=".7" fill="#fff"/>`],
-    TikTok: ["#111", `<path d="M11 5v7.2a2.2 2.2 0 1 1-2.2-2.2" fill="none" stroke="#25f4ee" stroke-width="1.6" stroke-linecap="round" transform="translate(-.5 .4)"/><path d="M11 5v7.2a2.2 2.2 0 1 1-2.2-2.2M11 5c.3 1.6 1.5 2.7 3 2.8" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>`],
     YouTube: ["#ff0000", `<path d="M8.4 7v6l5-3z" fill="#fff"/>`],
     Strava: ["#fc4c02", `<path d="M8.6 4.8l-3.4 6.6h2.1l1.3-2.6 1.3 2.6h2.1zM12.1 11.4l-1 2-1-2H8.6l2.5 4.8 2.5-4.8z" fill="#fff"/>`],
-    SpaceX: ["#000", `<path d="M4.5 13.5c4-5.6 7.6-8 11-8.6-3 1.6-6.4 4.6-9.4 8.8z" fill="#fff"/><path d="M12.6 12.2l2.9 2.3h-2.2z" fill="#fff"/>`],
-    "Wi-Fi": ["#2563eb", `<path d="M4.6 8.6a7.6 7.6 0 0 1 10.8 0M6.4 10.6a5 5 0 0 1 7.2 0M8.3 12.5a2.3 2.3 0 0 1 3.4 0" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/><circle cx="10" cy="14.4" r="1" fill="#fff"/>`],
+    Hinge: ["#1a1a1a", `<path d="M7 5.2v9.6M13 5.2v9.6M7 10h6" stroke="#fff" stroke-width="2" stroke-linecap="round"/>`],
+    Zola: ["#f4ede4", `<path d="M10 14.8s-4.6-2.8-4.6-5.9c0-1.4 1-2.6 2.4-2.6 1 0 1.8.6 2.2 1.4.4-.8 1.2-1.4 2.2-1.4 1.4 0 2.4 1.2 2.4 2.6 0 3.1-4.6 5.9-4.6 5.9z" fill="#b5867a"/>`],
     Weather: ["#3b82f6", `<circle cx="10" cy="10" r="3" fill="#ffd60a"/>` + [0, 45, 90, 135, 180, 225, 270, 315].map((a) => `<path d="M10 4.2v1.3" stroke="#ffd60a" stroke-width="1.3" stroke-linecap="round" transform="rotate(${a} 10 10)"/>`).join("")],
+    Spotify: ["#1db954", `<path d="M5.6 8.2q4.6-1.4 8.8.8M6.3 10.7q3.8-1 7.1.7M7 13q2.9-.7 5.4.5" fill="none" stroke="#000" stroke-width="1.4" stroke-linecap="round"/>`],
   }
   // Apps without an icon get their letter on a stable tint, as the daemon draws them.
   function tint(app) {
@@ -127,13 +121,14 @@
   let cards = [] // newest first
   let geo = { w: 420, x0: 0, top: 40, bottom: 0 }
 
-  // Cards fill the right-hand column (#desk), under its clock line, and stop above Skip and Replay. The
+  // Cards fill the right-hand column (#desk) under its clock line, down to its bottom (Replay shows
+  // there only once the story has ended and the column is empty but for Gary). The
   // column has a fixed height, so the stack never moves the page.
   function measureGeo() {
     const vw = body.clientWidth
     const vh = body.clientHeight
     const w = Math.min(420, vw)
-    geo = { w, x0: vw - w, top: 34, bottom: vh - 26, vw, vh }
+    geo = { w, x0: vw - w, top: 34, bottom: vh - 6, vw, vh }
     for (const c of cards) {
       c.el.style.setProperty("--w", w + "px")
       c.h = c.el.offsetHeight
