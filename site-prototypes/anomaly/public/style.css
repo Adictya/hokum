@@ -1,0 +1,132 @@
+/* A quiet desktop with one thing on it. The cards are Hokum's Capsule theme (themes/capsule.kdl
+   over themes/default.kdl), dark appearance, drawn in HTML. */
+@font-face { font-family: "Inter"; src: url("assets/inter.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }
+@font-face { font-family: "Plex Mono"; src: url("assets/ibm-plex-mono-400.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Plex Mono"; src: url("assets/ibm-plex-mono-500.woff2") format("woff2"); font-weight: 500 700; font-display: swap; }
+
+:root {
+  --desk-top: oklch(0.29 0.06 265);
+  --desk-bottom: oklch(0.19 0.05 300);
+  --card: #262626;
+  --text: #f2f2f2;
+  --muted: #a7a7a7;
+  --faint: #7f7f7f;
+  --button: #353535;
+  --danger: #ec6b6b;
+  --sans: "Inter", system-ui, sans-serif;
+  --mono: "Plex Mono", ui-monospace, monospace;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #11131c; }
+body { color: var(--text); font: 13px/1.4 var(--sans); font-feature-settings: "cv11", "ss01"; -webkit-font-smoothing: antialiased; -webkit-text-size-adjust: 100%; }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+a { color: inherit; }
+
+#desk {
+  position: fixed; inset: 0; overflow: hidden;
+  background: linear-gradient(var(--desk-top), var(--desk-bottom));
+  user-select: none; -webkit-user-select: none;
+}
+
+/* A bar like a Wayland panel. */
+#panel {
+  position: absolute; inset: 0 0 auto; z-index: 2; height: 28px; padding: 0 14px;
+  display: flex; align-items: center; justify-content: space-between;
+  background: rgb(0 0 0 / 0.32); color: rgb(255 255 255 / 0.78);
+  font: 500 12px/1 var(--sans); font-variant-numeric: tabular-nums;
+}
+#panel .mark { display: flex; align-items: center; gap: 6px; }
+#panel .mark b { font-weight: 650; letter-spacing: -0.01em; }
+#panel svg { width: 14px; height: 14px; }
+
+/* The install command: centred, and a body the cards can shove. */
+#install {
+  position: absolute; left: 50%; top: 50%; z-index: 1;
+  width: max-content; max-width: calc(100vw - 32px);
+  margin: 0; display: flex; flex-direction: column; align-items: center; gap: 14px;
+  translate: -50% -50%; will-change: transform; transform-origin: 50% 50%;
+}
+.tagline {
+  margin: 0; max-width: 30em; text-align: center; text-wrap: balance;
+  font: 450 14px/1.5 var(--sans); color: rgb(255 255 255 / 0.55);
+}
+.cmd {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 6px 6px 18px; border-radius: 14px;
+  background: rgb(10 10 14 / 0.55); box-shadow: 0 0 0 1px rgb(255 255 255 / 0.1), 0 10px 30px rgb(0 0 0 / 0.3);
+  font: 400 16px/1 var(--mono); user-select: text; -webkit-user-select: text;
+  transition: font-size 0.35s, padding 0.35s;
+}
+.cmd code { font: inherit; white-space: nowrap; }
+.cmd .prompt { color: rgb(255 255 255 / 0.35); }
+#copy { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 9px; color: rgb(255 255 255 / 0.55); }
+#copy:hover { background: rgb(255 255 255 / 0.08); color: #fff; }
+#copy svg { width: 16px; height: 16px; }
+.alt { display: flex; gap: 16px; font: 400 12px/1 var(--mono); color: rgb(255 255 255 / 0.38); }
+.alt span { color: rgb(255 255 255 / 0.6); }
+.alt a { text-decoration: none; }
+.alt a:hover { color: #fff; }
+#install.final .cmd { font-size: 22px; padding: 10px 10px 10px 26px; border-radius: 18px; }
+#install.final #copy { width: 44px; height: 44px; }
+
+/* Capsule cards. */
+#cards { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+.card {
+  position: absolute; left: 0; top: 0; width: 420px;
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 16px; border-radius: 24px; background: var(--card);
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.07), 0 2px 6px rgb(0 0 0 / 0.22), 0 14px 36px rgb(0 0 0 / 0.45);
+  will-change: transform, opacity; pointer-events: auto; touch-action: none; cursor: grab;
+  transform-origin: 50% 50%;
+}
+.card:hover { background: #2a2a2a; }
+.card.drag { cursor: grabbing; }
+.card.ghost { pointer-events: none; }
+.card.critical { box-shadow: 0 0 0 1.5px var(--danger), 0 2px 6px rgb(0 0 0 / 0.22), 0 14px 36px rgb(0 0 0 / 0.45); }
+.head { display: flex; align-items: center; gap: 8px; }
+.badge { flex: none; width: 20px; height: 20px; border-radius: 10px; display: grid; place-items: center; font: 650 11px/1 var(--sans); color: #fff; }
+.badge svg { width: 20px; height: 20px; display: block; }
+.src { flex: 1; min-width: 0; font-size: 11px; font-weight: 550; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.time { font-size: 11px; color: var(--faint); font-variant-numeric: tabular-nums; }
+.x { display: grid; place-items: center; width: 20px; height: 20px; margin: -2px -4px -2px 0; border-radius: 6px; color: var(--faint); }
+.x:hover { color: var(--text); background: rgb(255 255 255 / 0.08); }
+.x svg { width: 10px; height: 10px; }
+.msg { display: flex; flex-direction: column; gap: 2px; }
+.title { font-weight: 550; color: var(--text); }
+.body { color: var(--muted); }
+.actions { display: flex; gap: 4px; }
+.actions button { height: 26px; padding: 0 10px; border-radius: 10px; font-weight: 550; color: var(--muted); }
+.actions button.primary { background: var(--button); color: var(--text); }
+.actions button:hover { color: var(--text); background: #3d3d3d; }
+
+/* "4 more · Clear all", under the stack when more than five are queued. */
+#pill {
+  position: absolute; left: 0; top: 0; z-index: 3;
+  display: flex; align-items: center; gap: 8px; height: 28px; padding: 0 12px; border-radius: 999px;
+  background: #1c1c1c; box-shadow: 0 0 0 1px #2e2e2e; font: 500 12px/1 var(--sans); color: var(--muted);
+  will-change: transform, opacity;
+}
+#pill[hidden] { display: none; }
+#clear { color: var(--text); }
+
+#ctrl { position: absolute; right: 14px; bottom: max(12px, env(safe-area-inset-bottom)); z-index: 4; display: flex; gap: 12px; }
+#ctrl button { font: 400 12px/1 var(--mono); color: rgb(255 255 255 / 0.32); padding: 6px 2px; }
+#ctrl button:hover, #ctrl button:focus-visible { color: rgb(255 255 255 / 0.8); }
+#ctrl button[hidden] { display: none; }
+
+@media (min-width: 1280px) {
+  body { font-size: 14px; }
+  .card { gap: 9px; }
+  .src, .time { font-size: 12px; }
+}
+@media (min-width: 900px) {
+  #install.final .cmd { font-size: 26px; padding: 12px 12px 12px 30px; border-radius: 20px; }
+  #install.final .tagline { font-size: 15px; }
+}
+@media (max-width: 600px) {
+  .tagline { font-size: 13px; }
+  .cmd { font-size: 15px; }
+  #install.final .cmd { font-size: 18px; padding: 8px 8px 8px 20px; }
+}

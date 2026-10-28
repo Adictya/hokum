@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>hokum — notifications for wayland</title>
+<meta name="description" content="Notifications for Wayland that look like they belong on a computer from this decade.">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#11131c">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preload" href="assets/inter.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/ibm-plex-mono-400.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="desk">
+  <header id="panel">
+    <span class="mark"><svg viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="6" width="26" height="9" rx="4.5" fill="currentColor" opacity=".4"/><rect x="3" y="17" width="26" height="9" rx="4.5" fill="currentColor"/></svg><b>hokum</b></span>
+    <time id="clock"></time>
+  </header>
+
+  <main id="install">
+    <h1 class="tagline">Notifications for Wayland that look like they belong on a computer from&nbsp;this&nbsp;decade.</h1>
+    <div class="cmd">
+      <code><span class="prompt" aria-hidden="true">$</span> <span id="cmd-text">paru -S hokum-bin</span></code>
+      <button type="button" id="copy" aria-label="Copy install command"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="2" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M10.5 3.5v-.5a1.5 1.5 0 0 0-1.5-1.5H4A1.5 1.5 0 0 0 2.5 3v5A1.5 1.5 0 0 0 4 9.5h.5" fill="none" stroke="currentColor" stroke-width="1.3"/></svg></button>
+    </div>
+    <nav class="alt">
+      <span>arch</span>
+      <a href="https://anoma.ly/release/hokum/desktop/stable/linux-x64-deb">.deb</a>
+      <a href="https://anoma.ly/release/hokum/desktop/stable/linux-x64-rpm">.rpm</a>
+      <a href="https://github.com/anomalyco/hokum" rel="noopener">github</a>
+    </nav>
+  </main>
+
+  <div id="cards" aria-live="polite"></div>
+  <div id="pill" hidden><span id="pill-n"></span><button type="button" id="clear">Clear all</button></div>
+
+  <div id="ctrl"><button type="button" id="skip">skip</button><button type="button" id="replay" hidden>replay</button></div>
+</div>
+<script src="hero.js"></script>
+</body>
+</html>
