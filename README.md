@@ -48,12 +48,6 @@ notifications first. On Omarchy, see [docs/omarchy.md](docs/omarchy.md).
 The first time it runs, Hokum shows one welcome card of its own with a button into Settings. It
 remembers that in `~/.local/state/hokum/welcomed`.
 
-The running service checks for updates at startup and then hourly: it fetches its channel's
-release manifest (`https://anoma.ly/release/hokum/desktop/<channel>.json`, sent as
-`hokum/<channel>/<version>`) and notes a newer version in its log (`journalctl --user -u hokum`).
-It never updates itself; update through your package manager. To turn it off, set
-`check-for-updates #false` in `behaviour` in `config.kdl`.
-
 ## Use
 
 ```sh
@@ -63,6 +57,7 @@ hokum check [path]        # report problems in config.kdl, or in a theme or conf
 hokum dismiss [--all]     # close the newest card, or every card
 hokum invoke              # do what clicking the newest card does
 hokum dnd [on|off|toggle] # print Do not disturb, or set it (--json, --watch for bars)
+hokum update [--install]  # check for a new build now (and install it)
 hokum --version
 ```
 
@@ -100,6 +95,26 @@ click-through overlay and hosts the settings window. Launching `hokum` again sho
 
 Hokum keeps `config.kdl`, your `themes/` and `script.rhai` in `~/.config/hokum/`, and notices
 when any of them change.
+
+## Updates
+
+Hokum never updates itself without a click. A minute after it starts, and then hourly (every 30
+minutes on dev builds), the service fetches its channel's release manifest
+(`https://anoma.ly/release/hokum/desktop/<channel>.json`, sent as `hokum/<channel>/<version>`).
+When the published executable for your machine differs from the running one (compared by
+sha256), one Hokum card says so:
+
+- Installed as a plain file you can write (`~/.local/bin/hokum`): **Update** downloads it,
+  checks its size and sha256, replaces the executable and restarts Hokum, which then says
+  "Hokum updated". If anything fails, the card says what and the old executable stays.
+- Installed by a package manager (AUR, .deb, .rpm): the button copies the command that updates
+  it (`paru -Syu hokum-bin`, for instance) with `wl-copy`, or opens hokum.app.
+
+Dismiss the card and that build stays quiet until Hokum restarts or a day passes. Like Hokum's
+other cards it waits out Do not disturb. Failures are silent and retried at the next check. To
+turn checks off, set `check-for-updates #false` in `behaviour` in `config.kdl`. Builds run from a
+cargo `target/` folder never check. `hokum update` checks now; `hokum update --install` does what
+the card's button does.
 
 ## Build
 

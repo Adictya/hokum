@@ -104,15 +104,20 @@ and the GitHub release mirror keep versioned names
 them. Every target has a stable link to the channel's current file, for
 example `https://anoma.ly/release/hokum/desktop/dev/linux-x64-deb`.
 
-Hokum has no updater: installs update through their package manager, or by
-installing the newest file again. The running service (`src/update.rs`) does
-check in, at startup and then hourly (plus up to five minutes of jitter): it
-fetches its channel's manifest with User-Agent `hokum/<channel>/<version>`
-(for example `hokum/stable/0.1.1` or `hokum/dev/0.0.0-dev-19`), which counts
-active installs, and logs when the manifest's version is newer. The channel
-comes from the built version: `0.0.0-dev-*` is dev, `*-beta.*` beta,
-anything else stable. Failures are silent, and `check-for-updates #false` in
-config.kdl's `behaviour` turns it off.
+Hokum updates only when the user clicks. The running service
+(`src/update.rs`) checks in a minute after start and then hourly (every 30
+minutes on dev; plus up to five minutes of jitter): it fetches its channel's
+manifest with User-Agent `hokum/<channel>/<version>` (for example
+`hokum/stable/0.1.1` or `hokum/dev/0.0.0-dev-19`), which counts active
+installs. The channel comes from the built version: `0.0.0-dev-*` is dev,
+`*-beta.*` beta, anything else stable. When the `linux-<arch>` target's
+sha256 differs from the running executable's, one card offers it: a plain
+writable install (`~/.local/bin/hokum`) downloads it, checks size and sha256,
+renames it over the executable and restarts (`systemctl --user restart` of
+its unit, or re-exec); a pacman, dpkg or rpm install gets the manifest's
+`distributions` command for its package copied instead. `hokum update
+[--install]` does the same from a terminal. Failures are silent, and
+`check-for-updates #false` in config.kdl's `behaviour` turns the checks off.
 
 ## Channels
 

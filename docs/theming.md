@@ -13,7 +13,7 @@ behaviour {                  // only here, never in a theme
     pause-on-hover #true
     do-not-disturb #false
     appearance "system"      // system, light, dark
-    check-for-updates #true  // look for a newer Hokum hourly
+    check-for-updates #true  // offer newer Hokum builds with a card
 }
 
 tokens {                     // anything about the look
@@ -73,7 +73,7 @@ appearance under Appearance and the rest under Behaviour.
 | `pause-on-hover` | `#true`: timers wait while the pointer is over a card |
 | `do-not-disturb` | `#true`: only critical notifications, and apps whose rule has `interrupt`, show |
 | `appearance` | `system`, `light`, `dark` |
-| `check-for-updates` | `#true`: fetch the release manifest at startup and hourly, and log when a newer version is out; `#false` turns it off |
+| `check-for-updates` | `#true`: fetch the release manifest hourly (30 minutes on dev) and show a card when a different build is out; nothing installs without a click. `#false` turns it off |
 
 ## Tokens and templates
 
