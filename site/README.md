@@ -2,8 +2,8 @@
 
 The website for Hokum: one URL, generated from the repository so it can't drift from the docs.
 
-`https://hokum.app/` is the only page. Browsers get HTML; agents and command line tools get the
-same page as one self-contained markdown document: install, usage, the configuration reference,
+`https://hokum.app/` is the only page. Everyone gets HTML; agents and command line tools that ask
+for it get the same page as one self-contained markdown document: install, usage, the configuration reference,
 the complete theme guide (`docs/themes.md`) and the source of every built-in theme, with links
 between them rewritten to headings. Hokum's **Make your own theme** prompt points agents here.
 
@@ -47,14 +47,22 @@ It builds a throwaway clone with its own target dir and runs `hokum --snap … -
 
 `worker.ts` decides per request to `/` (and sends `Vary: Accept, User-Agent`):
 
+HTML is the default, so browsers, unknown user agents, search crawlers and link-preview fetchers
+all get the page with its Open Graph tags. Markdown only when an agent asks for it:
+
 - `?format=md` or `?format=html` wins.
-- Markdown when `Accept` rates `text/markdown` at least as high as `text/html` (so curl's `*/*`
-  gets markdown), or `text/plain` higher than it, or doesn't mention `text/html` at all.
-- Markdown for user agents that aren't browsers: HTTP libraries and CLIs (curl, wget,
-  python-requests, node-fetch, undici, Go-http-client, …), AI fetchers and crawlers (Claude,
-  GPTBot, ChatGPT-User, OAI-SearchBot, PerplexityBot, …), coding agents (opencode, …), headless
-  browsers, and anything without `Mozilla` in it.
-- Otherwise (a browser: `text/html` in `Accept` and a Mozilla user agent) HTML.
+- Markdown when `Accept` names `text/markdown` (q > 0) and rates it at least as high as
+  `text/html`, or names `text/plain` and rates it higher. `*/*` alone doesn't count.
+- Markdown for known agents: HTTP clients and CLIs (curl, Wget, HTTPie, python-requests, httpx,
+  aiohttp, node-fetch, undici, axios, Go-http-client), AI fetchers (ClaudeBot, Claude-User,
+  Claude-SearchBot, anthropic-ai, GPTBot, ChatGPT-User, OAI-SearchBot, PerplexityBot,
+  Perplexity-User) and coding agents (opencode, Cursor, Codex, aider, gemini-cli).
+- Link-preview fetchers and search crawlers (Googlebot, Bingbot, Applebot, facebookexternalhit,
+  Twitterbot, Slackbot, Discordbot, LinkedInBot, TelegramBot, WhatsApp, Bluesky Cardyb, Mastodon,
+  redditbot, Embedly, Iframely, opengraph.xyz, Notion) always get HTML, whatever they accept.
+
+Both answers carry `Link: <https://hokum.app/?format=md>; rel="alternate"; type="text/markdown"`,
+and the HTML head has the matching `<link rel="alternate">`.
 
 Every other path except assets (`/style.css`, `/favicon.svg`, `/story.js`, `/hero.js`, `/site.js`, `/assets/*`) redirects
 to `/`, including the old `/themes.md`, `/theming.md`, `/index.md`, `/llms.txt` and
