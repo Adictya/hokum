@@ -378,8 +378,6 @@
   addEventListener("resize", () => { measureGeo(); layout() })
 
   window.hokumStoryTime = () => t
-  // The feature clips below the hero draw their cards with the same icons.
-  window.hokumIcon = icon
   window.hokumStoryBranch = () => branch
   load(choose())
   // Debug/preview: ?t=SECONDS starts the story at that point.

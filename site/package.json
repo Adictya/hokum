@@ -6,8 +6,5 @@
     "build": "bun build.ts",
     "dev": "bun build.ts && wrangler dev",
     "deploy": "bun build.ts && wrangler deploy"
-  },
-  "dependencies": {
-    "marked": "^16.0.0"
   }
 }

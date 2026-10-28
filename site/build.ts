@@ -3,7 +3,6 @@
 //
 // The site is one URL. dist/index.html is the page for browsers; dist/page.md is the same page
 // as one self-contained markdown document, which worker.ts serves at / to agents.
-import { Marked, type Tokens } from "marked"
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
@@ -95,12 +94,6 @@ const features = [...use.matchAll(/^- \*\*(.+?):\*\* ([\s\S]+?)(?=\n- |\n\n|(?![
   title: m[1],
   md: m[2].replace(/\s*\n\s*/g, " ").replace(/^./, (c) => c.toUpperCase()),
 }))
-const usageCode = use.match(/```sh\n([\s\S]+?)```/)?.[1].trimEnd() ?? ""
-const usageProse = use
-  .replace(/```sh\n[\s\S]+?```/, "")
-  .replace(/^- [\s\S]+?(?=\n\n[^-])/m, "")
-  .trim()
-
 // ---------------------------------------------------------------------------------------------
 // The markdown document: README, theming.md, themes.md and the built-in themes' sources, with
 // headings moved under one title and every link between them pointing at a heading.
@@ -222,51 +215,7 @@ MIT. Source: ${repo}
 `
 
 // ---------------------------------------------------------------------------------------------
-// The HTML page.
-
-// Links on the page: sections of the page or GitHub.
-function rewrite(href: string, prefix: string) {
-  if (href.startsWith("#")) return `#${prefix}-${href.slice(1)}`
-  if (/^[a-z]+:/i.test(href)) return href
-  const [path, hash] = href.split("#")
-  const name = path.split("/").pop()
-  if (name === "themes.md") return hash ? `#guide-${hash}` : "#guide"
-  if (name === "theming.md") return hash ? `#config-${hash}` : "#reference"
-  return github(href)
-}
-
-// A renderer for one document: its h1 is dropped, other headings move down a level and get
-// ids under `prefix`.
-function renderer(prefix: string) {
-  return new Marked({
-    gfm: true,
-    renderer: {
-      heading({ tokens, depth }: Tokens.Heading) {
-        if (depth === 1) return ""
-        const html = this.parser.parseInline(tokens)
-        const id = `${prefix}-${slug(html)}`
-        const level = Math.min(depth + 1, 6)
-        return `<h${level} id="${id}"><a href="#${id}">${html}</a></h${level}>\n`
-      },
-      link({ href, title, tokens }: Tokens.Link) {
-        const url = rewrite(href, prefix)
-        const external = /^https?:/.test(url) && !url.startsWith(origin)
-        return `<a href="${escape(url)}"${title ? ` title="${escape(title)}"` : ""}${external ? ' rel="noopener"' : ""}>${this.parser.parseInline(tokens)}</a>`
-      },
-      code({ text, lang }: Tokens.Code) {
-        return `<pre class="code"${lang ? ` data-lang="${escape(lang)}"` : ""}><code>${escape(text)}</code></pre>\n`
-      },
-      table(token: Tokens.Table) {
-        const cell = (c: Tokens.TableCell, tag: string) => `<${tag}>${this.parser.parseInline(c.tokens)}</${tag}>`
-        const head = token.header.map((c) => cell(c, "th")).join("")
-        const body = token.rows.map((r) => `<tr>${r.map((c) => cell(c, "td")).join("")}</tr>`).join("\n")
-        return `<div class="table"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>\n`
-      },
-    },
-  })
-}
-const render = (md: string, prefix: string) => renderer(prefix).parse(md) as string
-const inline = (md: string, prefix: string) => renderer(prefix).parseInline(md) as string
+// The HTML page: just the first screen and the footer. Agents get everything else (above).
 
 // Install: one tab per way, as the README gives them. Each "On …:" / "From …:" paragraph and the
 // code under it is a tab.
@@ -282,40 +231,8 @@ for (const m of installMd.slice(0, installMd.indexOf("Hokum starts through D-Bus
         : [slug(lead), lead]
   installTabs.push({ id, label, code: m[2].trimEnd() })
 }
-const serviceMd = installMd.slice(installMd.indexOf("Hokum starts through D-Bus") >>> 0)
-const serviceCode = serviceMd.match(/```sh\n([\s\S]+?)```/)?.[1].trim() ?? ""
-const serviceProse = serviceMd.replace(/```sh\n[\s\S]+?```/, "").trim()
-const binaryProse = installMd.match(/^Or download[\s\S]+?(?=\n\n)/m)?.[0].replace(/\s*\n\s*/g, " ") ?? ""
-
-const shell = (code: string) =>
-  code
-    .split("\n")
-    .map((l) => {
-      const [cmd, comment] = l.split(/(?<=\S)\s+(?=# )/)
-      return `<span class="cmd">${escape(cmd)}</span>${comment ? `  <span class="out">${escape(comment)}</span>` : ""}`
-    })
-    .join("\n")
-
-const binaryHtml = `<div class="downloads">${[
-  ["x64", "x86_64"],
-  ["arm64", "ARM64"],
-]
-  .map(
-    ([arch, label]) =>
-      `<div><span>${label}</span><a href="${release}/linux-${arch}">executable</a><a href="${release}/linux-${arch}-deb">.deb</a><a href="${release}/linux-${arch}-rpm">.rpm</a></div>`,
-  )
-  .join("")}</div>`
-
-// The theme guide's own intro paragraph is replaced by the section's lead.
-const guideBody = themesDoc.replace(/^# .+\n\n[\s\S]+?\n\n(?=## )/, "")
-const configExample = themingDoc.match(/```kdl\n([\s\S]+?)```/)?.[1].trimEnd() ?? ""
-const configLead = themingDoc.match(/^# .+\n\n([\s\S]+?)\n\n```/)?.[1] ?? ""
-const configRest = themingDoc.replace(/^# .+\n\n[\s\S]+?```kdl\n[\s\S]+?```\n\n/, "")
-const firstSentence = (md: string) => md.match(/^[\s\S]+?[.!?](?=\s|$)/)?.[0] ?? md
-
 // No Hokum logo yet: the favicon is a plain lettermark.
 const favicon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#111114"/><text x="16" y="22.5" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="19" font-weight="700" fill="#f2f2ef">H</text></svg>`
-const year = new Date().getFullYear()
 const githubIcon = `<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>`
 
 const productIcon = (p: { icon: string }) => `<svg viewBox="0 0 32 32" aria-hidden="true">${p.icon}</svg>`
@@ -345,12 +262,6 @@ ${installs.map((t, i) => `    <input class="sr" type="radio" name="platform" id=
     <div class="inst-tabs">${installs.map((t) => `<label for="p-${t.id}">${t.label}</label>`).join("")}</div>
 ${installs.map((t) => `    <div class="inst-line" id="panel-${t.id}"><span class="inst-p" aria-hidden="true">$</span>${t.arm64 ? cmd(t.x64, "x64") + cmd(t.arm64, "arm64") : cmd(t.x64, "")}<span class="inst-meta">${t.arm64 ? `<label for="arm" class="cpu"><span class="x64">x86_64</span><span class="arm64">arm64</span></label>` : ""}${t.link ?? ""}</span></div>`).join("\n")}
   </div>`
-const clipTiles = [
-  { id: "themes", title: "Eight themes built in", line: "One line of config switches the look. Or have your agent write a new one." },
-  { id: "stack", title: "Springs, not slides", line: "Cards stack, restack and leave on real spring physics." },
-  { id: "actions", title: "Buttons and progress", line: "Actions, progress bars, and volume that updates in place." },
-  { id: "dnd", title: "Do not disturb", line: "Only critical cards, and the apps you allow, get through." },
-]
 
 const html = `<!doctype html>
 <html lang="en">
@@ -402,81 +313,17 @@ ${products.map((p) => `        <a class="menu-item" href="${p.url}">${productIco
   </nav>
 </div>
 
-<main>
-<section class="clips" aria-label="Features">
-${clipTiles.map((c) => `  <figure class="clip" data-clip="${c.id}">
-    <div class="clip-screen"${c.id === "themes" ? ' data-theme="capsule"' : ""}>${c.id === "themes" ? '<span class="clip-label">theme "capsule"</span>' : ""}${c.id === "dnd" ? '<span class="clip-dnd"><i></i>Do not disturb</span><span class="clip-held"></span>' : ""}</div>
-    <figcaption><b>${escape(c.title)}</b> ${escape(c.line)}</figcaption>
-  </figure>`).join("\n")}
-</section>
-
-<section class="more-about">
-  <div class="about-grid">
-    <h2>What you get</h2>
-${features.map((f) => `    <div><h3>${escape(f.title)}</h3><p>${inline(firstSentence(f.md), "use")}</p></div>`).join("\n")}
-  </div>
-
-  <div class="docs">
-    <div class="theme-prompt">
-      <h2 id="guide">Make your own theme</h2>
-      <p>Custom themes are written by your coding agent. Copy this prompt, finish the sentence with the look you want, and it reads this page (an agent fetching ${origin} gets the whole guide as markdown), writes the theme, checks it and switches your config to it.</p>
-      <div class="prompt"><code id="prompt">${escape(prompt)}</code><button type="button" class="copy" data-copy-from="#prompt">Copy</button></div>
-    </div>
-    <details id="install">
-      <summary>Every way to install</summary>
-      <div class="doc">
-${installTabs.map((t) => `        <h3>${escape(t.label)}</h3>\n        <pre class="term"><code>${shell(t.code)}</code></pre>`).join("\n")}
-        <h3>Download</h3>
-        ${binaryHtml}
-        <p>${inline(binaryProse, "install")}</p>
-        <h3 id="service">Start with your session</h3>
-        ${render(serviceProse, "install")}
-        <pre class="term"><code>${shell(serviceCode)}</code></pre>
-      </div>
-    </details>
-    <details id="use">
-      <summary>Usage</summary>
-      <div class="doc">
-        <pre class="term"><code>${shell(usageCode)}</code></pre>
-        ${render(usageProse, "use")}
-      </div>
-    </details>
-    <details id="themes">
-      <summary>The built-in themes</summary>
-      <div class="doc"><div class="theme-list">
-${themes.map((t) => `        <div class="theme"><span class="name">${escape(t.name)}</span><code>theme "${t.id}"</code><span class="desc">${escape(t.comment)}</span></div>`).join("\n")}
-      </div></div>
-    </details>
-    <details id="configure">
-      <summary>Configuration reference</summary>
-      <div class="doc">
-        ${render(configLead, "config")}
-        <pre class="code"><code>${escape(configExample)}</code></pre>
-        ${render(configRest, "config")}
-      </div>
-    </details>
-    <details id="guide-reference">
-      <summary>The theme guide</summary>
-      <div class="doc">${render(guideBody, "guide")}</div>
-    </details>
-  </div>
-</section>
-
-</main>
 
 <footer class="foot">
   <a class="foot-brand" href="https://anoma.ly">${anomalyMark}<span>Anomaly</span></a>
   <nav>
     <a href="${repo}" rel="noopener">GitHub</a>
     <a href="${repo}/blob/dev/LICENSE" rel="noopener">MIT License</a>
-    <a href="https://anoma.ly">anoma.ly</a>
-    <a href="/?format=md">Markdown</a>
   </nav>
   <a class="built" href="https://opencode.ai" rel="noopener">${opencodeMark}<span>Built with <b>opencode</b></span></a>
 </footer>
 <script src="/story.js"></script>
 <script src="/hero.js"></script>
-<script src="/clips.js"></script>
 <script src="/site.js"></script>
 </body>
 </html>
@@ -490,5 +337,5 @@ writeFileSync(join(dist, "favicon.svg"), favicon)
 cpSync(join(site, "style.css"), join(dist, "style.css"))
 cpSync(join(site, "assets"), join(dist, "assets"), { recursive: true })
 cpSync(join(site, "_headers"), join(dist, "_headers"))
-for (const f of ["story.js", "hero.js", "clips.js", "site.js"]) cpSync(join(site, f), join(dist, f))
+for (const f of ["story.js", "hero.js", "site.js"]) cpSync(join(site, f), join(dist, f))
 console.log(`built ${dist}: ${themes.length} themes, ${features.length} features, ${installTabs.length} install tabs, ${markdown.length} bytes of markdown`)

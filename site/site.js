@@ -1,5 +1,4 @@
-// The page around the hero: the product menu, the platform guess, copy buttons, and links into
-// a folded section open it.
+// The page around the hero: the product menu, the platform guess and copy buttons.
 
 // Product switcher.
 const switcher = document.querySelector(".switcher-button")
@@ -27,36 +26,10 @@ const arm = document.getElementById("arm")
 if (arm && (/aarch64|arm64/i.test(ua) || new URLSearchParams(location.search).get("cpu") === "arm64")) arm.checked = true
 
 // Copy buttons.
-for (const pre of document.querySelectorAll("pre.term, pre.code")) {
-  const b = document.createElement("button")
-  b.type = "button"
-  b.className = "copy"
-  b.textContent = "Copy"
-  b.dataset.copy = [...pre.querySelectorAll(".cmd")].map((c) => c.textContent).join("\n") || pre.querySelector("code").textContent
-  pre.append(b)
-}
-for (const b of document.querySelectorAll("button[data-copy-from]")) b.dataset.copy = document.querySelector(b.dataset.copyFrom).textContent
 for (const b of document.querySelectorAll("button[data-copy]"))
   b.addEventListener("click", () => {
     navigator.clipboard.writeText(b.dataset.copy.trimEnd()).then(() => {
-      // Icon buttons tick; text buttons say so.
-      if (b.querySelector("svg")) {
-        b.classList.add("done")
-        setTimeout(() => b.classList.remove("done"), 1500)
-      } else {
-        b.textContent = "Copied"
-        setTimeout(() => (b.textContent = "Copy"), 1500)
-      }
+      b.classList.add("done")
+      setTimeout(() => b.classList.remove("done"), 1500)
     })
   })
-
-function reveal() {
-  const el = location.hash && document.getElementById(decodeURIComponent(location.hash.slice(1)))
-  const d = el && (el.tagName === "DETAILS" ? el : el.closest("details"))
-  if (d && !d.open) {
-    d.open = true
-    el.scrollIntoView()
-  }
-}
-addEventListener("hashchange", reveal)
-reveal()

@@ -7,18 +7,19 @@ same page as one self-contained markdown document: install, usage, the configura
 the complete theme guide (`docs/themes.md`) and the source of every built-in theme, with links
 between them rewritten to headings. Hokum's **Make your own theme** prompt points agents here.
 
-The page has no images. From the top: the Anomaly product switcher (the `products` list in `build.ts`) and GitHub; the hero, a
-desktop where a crime story plays out in notification cards; the headline and an install button
-for the visitor's platform (`site.js` guesses; `?platform=arch|debian|fedora|binary`); four
-live feature clips (`clips.js`, drawn with the hero's cards); what Hokum does, the "make your own
-theme" prompt and the folded references; the Anomaly footer with a "Built with opencode" badge.
+The HTML page is one screen and a footer, with no images. The product switcher (the `products`
+list in `build.ts`) and GitHub float over a black page; the story's cards arrive in its top-right
+corner; the headline, subline and install row (`site.js` guesses the platform;
+`?platform=arch|debian|fedora|binary`, `?cpu=arm64`) sit bottom left. Everything else (install
+details, usage, configuration, the theme guide and every built-in theme) is only in the markdown
+agents get.
 
 | Source | Becomes |
 |---|---|
-| `README.md` | Install, usage and features (the bold bullets under `## Use`) |
-| `docs/theming.md` | The configuration reference |
-| `docs/themes.md` | The theme guide |
-| `themes/*.kdl` | The built-in themes list and the markdown |
+| `README.md` | The install commands; install, usage and features in the markdown |
+| `docs/theming.md` | The configuration reference (markdown) |
+| `docs/themes.md` | The theme guide (markdown) |
+| `themes/*.kdl` | The built-in theme sources (markdown) |
 | `story.js` | The story as data: `STORY_TRUNK` (everyone sees it), then `STORY_BRANCHES` (six endings) |
 | `hero.js` | The cards: Capsule's look and spring, stacking, the "N more" pill, drag, fling, dismiss, the desktop clock, skip and replay |
 
@@ -41,7 +42,7 @@ and `hero.js` logic; keep them in sync. The story pauses while scrolled off scre
   browsers, and anything without `Mozilla` in it.
 - Otherwise (a browser: `text/html` in `Accept` and a Mozilla user agent) HTML.
 
-Every other path except assets (`/style.css`, `/favicon.svg`, `/story.js`, `/hero.js`, `/clips.js`, `/site.js`, `/assets/*`) redirects
+Every other path except assets (`/style.css`, `/favicon.svg`, `/story.js`, `/hero.js`, `/site.js`, `/assets/*`) redirects
 to `/`, including the old `/themes.md`, `/theming.md`, `/index.md`, `/llms.txt` and
 `/themes/*.kdl`. `www.hokum.app` redirects to the apex.
 
@@ -56,7 +57,7 @@ curl -s localhost:8787 | head        # markdown
 open 'http://localhost:8787/?format=html'
 ```
 
-`build.ts` is the whole generator: `marked` for the markdown, a template string for the page,
+`build.ts` is the whole generator: string templates for the markdown and the page,
 `style.css` for the look. No JavaScript is loaded from elsewhere and the CSP allows only this
 origin. Fonts (Inter, IBM Plex Mono) are self-hosted from `assets/`.
 
