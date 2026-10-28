@@ -1228,7 +1228,7 @@ pub fn source(id: &str) -> Option<String> {
 /// A theme with everything it starts from merged in (`theme "…"` chains, up to a few deep).
 pub fn resolve(id: &str) -> Result<Theme, Vec<Problem>> {
     let mut chain = Vec::new();
-    let mut next = Some(if id.is_empty() { "soft".to_owned() } else { id.to_owned() });
+    let mut next = Some(if id.is_empty() { "capsule".to_owned() } else { id.to_owned() });
     while let Some(id) = next.take() {
         if chain.len() >= 4 || chain.iter().any(|t: &Theme| t.id == id) {
             return Err(vec![Problem { line: 0, message: format!("`{id}` starts from itself or goes too deep") }]);

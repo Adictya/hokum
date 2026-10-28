@@ -1,4 +1,4 @@
-//! `config.kdl`: the one file that controls Hokum. It starts from a theme (`theme "soft"`) and
+//! `config.kdl`: the one file that controls Hokum. It starts from a theme (`theme "capsule"`) and
 //! overrides anything: `behaviour`, `tokens`, `template`, `rule`. Themes are the same format, so
 //! a config is a theme of your own on top of another.
 //!
@@ -18,13 +18,13 @@ pub fn path() -> PathBuf {
 
 pub const DEFAULT: &str = r#"// Hokum's configuration. The settings window edits this file too, keeping your comments.
 // Reference: https://github.com/anomalyco/hokum/blob/main/docs/theming.md
-theme "soft"
+theme "capsule"
 "#;
 
 /// The config, the theme it starts from, and the two merged.
 #[derive(Clone)]
 pub struct Loaded {
-    /// The theme reference (`theme "…"`), "soft" when unset.
+    /// The theme reference (`theme "…"`), "capsule" when unset.
     pub base_id: String,
     /// That theme on its own: what the config's overrides sit on.
     pub base: Theme,
@@ -61,12 +61,12 @@ pub fn load() -> Loaded {
             Theme::empty()
         }
     };
-    let base_id = own.base.clone().unwrap_or_else(|| "soft".into());
+    let base_id = own.base.clone().unwrap_or_else(|| "capsule".into());
     let base = match crate::theme::resolve(&base_id) {
         Ok(t) => t,
         Err(p) => {
             problems.extend(p.into_iter().map(|p| Problem { line: p.line, message: format!("theme `{base_id}`: {}", p.message) }));
-            crate::theme::resolve("soft").unwrap_or_else(|_| Theme::empty())
+            crate::theme::resolve("capsule").unwrap_or_else(|_| Theme::empty())
         }
     };
     let mut theme = base.merge(&own);
@@ -466,6 +466,15 @@ mod tests {
 
     fn edit(src: &str) -> Edit {
         Edit { doc: src.parse().unwrap() }
+    }
+
+    #[test]
+    fn the_default_is_capsule_with_app_icons() {
+        let own = crate::theme::parse(DEFAULT, "config").unwrap();
+        assert_eq!(own.base.as_deref(), Some("capsule"));
+        let t = crate::theme::resolve("").unwrap();
+        assert_eq!(t.id, "capsule");
+        assert_eq!(t.base(true).mark, crate::style::Mark::Icon);
     }
 
     #[test]

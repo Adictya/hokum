@@ -1,4 +1,4 @@
-// Soft: rounded cards with the app's icon, a hairline border and a soft shadow. The default.
+// Soft: rounded cards with the app's icon, a hairline border and a soft shadow.
 name "Soft"
 
 tokens {

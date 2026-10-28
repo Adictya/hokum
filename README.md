@@ -56,7 +56,7 @@ click-through overlay and hosts the settings window. Launching `hokum` again sho
   look (`tokens`), layout (`template`), per-app and per-text `rule`s, and `behaviour`. The
   settings window edits the same file, keeping your comments, and hand edits apply as you save.
 - **Themes:** eight built in (Soft, Crisp, Capsule, Ribbon, Terminal, Bubble, Signal, Pill), shown
-  in a gallery as real cards. Reference one and override bits, or clone it to change everything.
+  in a gallery as real cards. Capsule, with app icons, is the default. Reference one and override bits, or clone it to change everything.
   A Rhai script can rewrite or drop notifications too. See [docs/theming.md](docs/theming.md).
 - **Per app:** mute, how long its cards stay, its colour, breaking through Do not disturb, and
   which layout it uses, for every app that has sent you a notification.

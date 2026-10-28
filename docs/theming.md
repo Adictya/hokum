@@ -4,7 +4,7 @@ Everything about Hokum lives in one file, `~/.config/hokum/config.kdl` (`$XDG_CO
 It starts from a theme and overrides whatever you like:
 
 ```kdl
-theme "signal"               // start from a theme (default: "soft")
+theme "signal"               // start from a theme (default: "capsule")
 
 behaviour {
     position "bottom-right"

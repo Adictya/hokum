@@ -1,4 +1,5 @@
-// Capsule: wide, roomy and very round, floating on a deep shadow.
+// Capsule: wide, roomy and very round, floating on a deep shadow, with the
+// app's icon. The default.
 name "Capsule"
 
 tokens {
