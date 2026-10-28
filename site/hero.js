@@ -1,6 +1,6 @@
 ;(() => {
   // The trunk, then one of the branches: random per visit, a different one on each replay,
-  // or the one `?branch=` names (1–6 or its key).
+  // or the one `?branch=` names (1–5 or its key).
   const TRUNK = window.STORY_TRUNK
   const BRANCHES = window.STORY_BRANCHES
   const KEYS = Object.keys(BRANCHES)
@@ -69,7 +69,6 @@
     "Lime Corp": ["#84cc16", `<circle cx="10" cy="10" r="5.4" fill="#ecfccb"/><circle cx="10" cy="10" r="4.4" fill="#a3e635"/>` + [0, 60, 120, 180, 240, 300].map((a) => `<path d="M10 10V5.8" stroke="#ecfccb" stroke-width=".9" transform="rotate(${a} 10 10)"/>`).join("")],
     Forbes: ["#111", `<path d="M7.4 5.6h5.4M8.8 5.6v8.8M8.8 9.8h3.2M7.4 14.4h3" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>`],
     "Lake Man 2032": ["#b91c1c", `<path d="M10 4.8l1.5 3.2 3.5.4-2.6 2.4.7 3.5L10 12.6l-3.1 1.7.7-3.5L5 8.4l3.5-.4z" fill="#fff"/>`],
-    "Tidy Pro": ["#0d9488", `<path d="M10 4.6l1.3 3.6 3.6 1.3-3.6 1.3L10 14.4l-1.3-3.6-3.6-1.3 3.6-1.3z" fill="#fff"/><circle cx="14.6" cy="5.6" r="1" fill="#fff"/>`],
     WITSEC: ["#1e3a8a", `<path d="M10 4.4l4.6 1.8v3.6c0 3-2 4.9-4.6 5.8-2.6-.9-4.6-2.8-4.6-5.8V6.2z" fill="none" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/><path d="M10 7.6l.8 1.7 1.8.2-1.4 1.2.4 1.8-1.6-.9-1.6.9.4-1.8-1.4-1.2 1.8-.2z" fill="#fff"/>`],
     Wallet: ["#111", `<rect x="5" y="6" width="10" height="3" rx="1" fill="#f59e0b"/><rect x="5" y="8" width="10" height="3" rx="1" fill="#22c55e"/><rect x="5" y="10" width="10" height="4.5" rx="1.2" fill="#3b82f6"/>`],
     Podcasts: ["#9333ea", `<circle cx="10" cy="8.6" r="1.6" fill="#fff"/><path d="M7.2 11.4a4 4 0 1 1 5.6 0M5.6 13a6.2 6.2 0 1 1 8.8 0" fill="none" stroke="#fff" stroke-width="1.3" stroke-linecap="round"/><path d="M9.2 11h1.6l-.3 4h-1z" fill="#fff"/>`],

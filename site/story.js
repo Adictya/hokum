@@ -2,7 +2,7 @@
 // story (drives the card's timestamp and the desktop clock), `urgency` 2 is critical.
 // `progress: [from, to]` animates a bar over the card's life; `scene` changes the wallpaper.
 //
-// Everyone sees the same start, up to the cartel's text. Then one of six endings, picked at
+// Everyone sees the same start, up to the cartel's text. Then one of five endings, picked at
 // random (hero.js); a branch's `at` counts from the trunk's last card. Each ends the same way:
 // the corner empties, then one last card that stays (`final`).
 window.STORY_TRUNK = [
@@ -55,31 +55,7 @@ window.STORY_TRUNK = [
 const G = { app: "Messages", title: "Gary", avatar: "G", final: true }
 const R = "Det. Ramirez"
 window.STORY_BRANCHES = {
-  // 1. Busy, not rich.
-  gig: { name: "Top-rated gig worker", cards: [
-    { at: 1.6, app: "WhatsApp", title: "+52 667 555 0140", body: "download this app. use code TARP", time: "2026-03-21T11:20" },
-    { at: 3.2, app: "Tidy Pro", title: "Welcome, Pro! 👋", body: "Your background check came back… interesting. You're approved!", time: "2026-03-21T11:31" },
-    { at: 4.9, app: "Tidy Pro", title: "New job request · 4.2 km away", body: "Category: Cleaning · Bring tarp", time: "2026-03-22T23:40", actions: ["Accept", "Decline"] },
-    { at: 6.7, app: "Tidy Pro", title: "You earned a 5-star rating! ⭐", body: "“Very discreet. Didn't ask questions.”", time: "2026-03-23T04:15" },
-    { at: 8.3, app: "Phone", title: "Missed calls (40) · " + R, body: "Voicemail: “Is that a tarp in your profile picture?”", time: "2026-03-25T10:00" },
-    { at: 9.9, app: "Tidy Pro", title: "Surge pricing in effect ⚡", body: "Cartel war downtown. Earn 3.5× on all jobs tonight.", time: "2026-04-03T21:00" },
-    { at: 11.3, app: "Tidy Pro", title: "Your customer tipped $20 🙏", body: "“Same time next week?”", time: "2026-04-04T05:10" },
-    { at: 12.8, app: "Tidy Pro", title: "You're a Top Rated Pro 🏅", body: "Top 1% in Cleaning. Enjoy a free tarp on us!", time: "2026-05-01T09:00" },
-    { at: 14.3, app: "Messages", title: "Mom", body: "are you eating", time: "2026-05-02T19:00" },
-    { at: 15.7, app: "Tidy Pro", title: "New job request · 11 km away", body: "Client: the other cartel · “No hard feelings” · Bring 2 tarps", time: "2026-05-09T22:30", actions: ["Accept", "Decline"] },
-    { at: 17.3, app: "Tidy Pro", title: "Your week", body: "47 jobs · 312 hours · You earned $186.40 (after fees)", time: "2026-05-11T08:00" },
-    { at: 18.9, app: "Phone", title: "Missed calls (300) · " + R, body: "Voicemail: “I left you a one-star review.”", time: "2026-06-02T10:00" },
-    { at: 20.5, app: "Tidy Pro", title: "New job request · 30 km away", body: "Client: a government agency · “We can't say. Bring tarp.”", time: "2026-07-14T02:00", actions: ["Accept", "Decline"] },
-    { at: 22.1, app: "Tidy Pro", title: "New job request · 9,100 km away", body: "Client: Interpol · “Our own mess, actually. Please hurry.”", time: "2026-09-02T03:20", actions: ["Accept", "Decline"] },
-    { at: 23.7, app: "Duolingo", title: "🦉 Quick Spanish lesson?", body: "Today's phrase: “Solo hago limpieza.” — I just do cleaning.", time: "2026-09-03T17:51" },
-    { at: 25.3, app: "Tidy Pro", title: "Your account is under review", body: "A customer reported you for “being suspiciously good at this.”", time: "2026-10-10T09:00" },
-    { at: 26.9, app: "Tidy Pro", title: "Review closed ✅", body: "The customer is no longer with us. Keep up the great work!", time: "2026-10-11T09:00" },
-    { at: 28.5, app: "Phone", title: "Missed calls (2,113) · " + R, body: "Voicemail: “I downloaded the app.”", time: "2027-01-08T10:00" },
-    { at: 30.3, app: "Tidy Pro", title: "New job request · 0.1 km away", body: "Client: " + R + " · “Just want to talk. No tarp needed.”", time: "2027-01-08T10:02", actions: ["Accept", "Decline"] },
-    { ...G, at: 39.0, body: "u still owe me $40", time: "2027-01-08T23:58" },
-  ] },
-
-  // 2. Both sides.
+  // 1. Both sides.
   agent: { name: "Double agent", cards: [
     { at: 1.6, app: "Phone", title: "Missed calls (40) · " + R, body: "Voicemail: “I'm in Mexico. Look out your window.”", time: "2026-03-21T11:30" },
     { at: 3.3, app: "Messages", title: R, body: "help us take down the boss and we'll forget about the lake", time: "2026-03-21T11:34" },
@@ -106,7 +82,7 @@ window.STORY_BRANCHES = {
     { ...G, at: 41.6, body: "hey doug. u still owe me $40", time: "2026-05-03T23:58" },
   ] },
 
-  // 3. Ever farther.
+  // 2. Ever farther.
   world: { name: "Around the world", cards: [
     { at: 1.6, app: "Phone", title: "Missed calls (40) · " + R, body: "Voicemail: “Mexico? Really?”", time: "2026-03-21T11:30" },
     { at: 3.1, app: "Messages", title: R, body: "nice sombrero", time: "2026-03-21T14:00" },
@@ -137,7 +113,7 @@ window.STORY_BRANCHES = {
     { ...G, at: 45.2, body: "u still owe me $40", time: "2035-11-30T23:58" },
   ] },
 
-  // 4. Famous, not rich.
+  // 3. Famous, not rich.
   legend: { name: "Folk legend", cards: [
     { at: 1.6, app: "WhatsApp", title: "+52 667 555 0140", body: "actually the boss says ur too famous. good luck", time: "2026-03-21T11:20" },
     { at: 3.2, app: "Podcasts", title: "New episode: Lake Man", body: "Ep. 1 of 9: The Oar · #1 in True Crime", time: "2026-04-14T05:00" },
@@ -163,7 +139,7 @@ window.STORY_BRANCHES = {
     { ...G, at: 40.6, body: "mr president. u still owe me $40", time: "2029-03-10T23:58" },
   ] },
 
-  // 5. Dead, repeatedly.
+  // 4. Dead, repeatedly.
   dead: { name: "Faking his death", cards: [
     { at: 1.6, app: "ChatGPT", title: "Starting Over Fresh", body: "Love this for you! Lots of people start a new life. Step 1: leave convincing evidence of your own…", time: "2026-03-21T11:30" },
     { at: 3.8, app: "Facebook", title: "Remembering Dave", body: "Dave's profile is now a memorial. Share a memory?", time: "2026-03-28T09:00" },
@@ -188,7 +164,7 @@ window.STORY_BRANCHES = {
     { ...G, at: 38.6, body: "nice funeral. u still owe me $40", time: "2027-02-01T23:58" },
   ] },
 
-  // 6. The original: lime empire, president, the Moon.
+  // 5. The original: lime empire, president, the Moon.
   empire: { name: "Lime empire", cards: [
     // V. Good with a tarp
     { at: 0.0, app: "WhatsApp", title: "+52 667 555 0140", body: "the boss saw you on the news. nice tarp work", time: "2026-03-21T11:02" },
