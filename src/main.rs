@@ -7,10 +7,12 @@
 //! hokum dismiss [--all]     # close the newest card (or all of them)
 //! hokum invoke              # click the newest card
 //! hokum dnd [on|off|toggle] # Do not disturb: print it, or set it and print the result
+//! hokum update [--install]  # check for a new build now (and install it)
 //! hokum --version
 //! hokum --snap /tmp/settings.png --scene hokum            # headless settings, no D-Bus
 //! hokum service --snap /tmp/cards.png --scene demo        # headless cards, no D-Bus
 //! hokum service --snap /tmp/welcome.png --scene welcome  # the first run's card
+//! hokum service --snap /tmp/update.png --scene update    # the update card
 //! ```
 //!
 //! One process, like Hex: the service owns `org.freedesktop.Notifications`, draws the cards on
@@ -35,7 +37,7 @@ mod welcome;
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
-const HELP: &str = "usage: hokum [service [--replace] | check [path] | dismiss | invoke | dnd] [--version] [--help]
+const HELP: &str = "usage: hokum [service [--replace] | check [path] | dismiss | invoke | dnd | update] [--version] [--help]
   hokum                  show the settings window (starts Hokum if needed)
   hokum service          run Hokum in the background (what hokum.service starts)
     --replace            take org.freedesktop.Notifications from another daemon
@@ -48,6 +50,8 @@ const HELP: &str = "usage: hokum [service [--replace] | check [path] | dismiss |
                          saved to config.kdl like the settings window's switch
     --json               print {\"dnd\":true} instead
     --watch              keep printing it whenever it changes (for bars)
+  hokum update           check for a new build on this build's channel now
+    --install            and install it, as clicking the update card does
   dismiss and invoke exit 1 when there are no notifications
   --version              print the version
 Rune's tooling flags (--snap, --scene, --size, --theme, ...) render headless.";
@@ -64,6 +68,9 @@ fn main() {
     }
     if argv.first().is_some_and(|a| a == "check") {
         std::process::exit(if config::check(argv.get(1).map(String::as_str)) { 0 } else { 1 });
+    }
+    if argv.first().is_some_and(|a| a == "update") {
+        std::process::exit(update::cli(&argv));
     }
     if argv.first().is_some_and(|a| matches!(a.as_str(), "dismiss" | "invoke" | "dnd")) {
         std::process::exit(bus::control(&argv));
@@ -113,6 +120,7 @@ fn launch() {
 /// that started Hokum lands above it.
 fn run(open: bool, replace: bool) {
     rune::set_app_id("hokum");
+    update::exe();
     let welcome = welcome::due();
     let config = watch::load();
     let (out_tx, out_rx) = mpsc::channel();
@@ -136,6 +144,10 @@ fn run(open: bool, replace: bool) {
         let n = welcome::note();
         overlay.update(move |c, _| c.upsert(n));
     }
+    if let Some(n) = update::greeting() {
+        overlay.update(move |c, _| c.upsert(n));
+    }
+    update::spawn(overlay.clone());
     let dnd = config.loaded.behaviour.do_not_disturb;
     let (bus, daemon) = match bus::serve(overlay.clone(), window.clone(), out_rx, replace, dnd) {
         Ok(served) => served,
@@ -153,7 +165,6 @@ fn run(open: bool, replace: bool) {
     if welcome {
         welcome::done();
     }
-    update::spawn();
     app.init(move || {
         let mut ui = settings::init();
         ui.configure(config);

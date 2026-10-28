@@ -138,7 +138,7 @@ impl Ui {
                 Err(e) => eprintln!("hokum: script.rhai: {e}"),
             }
         }
-        if n.id != crate::welcome::ID {
+        if n.id != crate::welcome::ID && n.id != crate::update::ID {
             crate::apps::record(&n.app);
         }
         let routing = self.theme.routing(&n);
@@ -195,10 +195,17 @@ impl Ui {
         self.reschedule();
     }
 
+    pub fn showing(&self, id: u32) -> bool {
+        self.notes.iter().any(|n| n.id == id)
+    }
+
     pub fn close(&mut self, id: u32, reason: Reason) {
         let before = self.notes.len();
         self.notes.retain(|n| n.id != id);
         if self.notes.len() != before {
+            if id == crate::update::ID {
+                crate::update::closed(reason);
+            }
             let _ = self.out.send(Out::Closed(id, reason));
             self.reschedule();
         }
@@ -206,6 +213,9 @@ impl Ui {
 
     fn clear(&mut self) {
         for n in self.notes.drain(..) {
+            if n.id == crate::update::ID {
+                crate::update::closed(Reason::Dismissed);
+            }
             let _ = self.out.send(Out::Closed(n.id, Reason::Dismissed));
         }
         self.reschedule();
@@ -244,6 +254,12 @@ impl Ui {
                 (None, _) => {}
             }
             self.dismiss(id);
+            return;
+        }
+        if id == crate::update::ID {
+            if crate::update::click(self.handle.clone(), token) {
+                self.dismiss(id);
+            }
             return;
         }
         if let Some(argv) = note.and_then(|n| n.command(key)) {
@@ -458,6 +474,10 @@ fn welcome(s: &mut Ui) {
     s.upsert(decoded(crate::welcome::note()));
 }
 
+fn update(s: &mut Ui) {
+    s.upsert(decoded(crate::update::sample()));
+}
+
 /// Scenes for the bundled themes.
 fn bundled(s: &mut Ui, id: &str) {
     if let Ok(t) = crate::theme::resolve(id) {
@@ -499,6 +519,7 @@ pub fn headless() {
             ("demo", demo),
             ("overflow", overflow),
             ("welcome", welcome),
+            ("update", update),
             ("soft", |s| bundled(s, "soft")),
             ("crisp", |s| bundled(s, "crisp")),
             ("capsule", |s| bundled(s, "capsule")),
