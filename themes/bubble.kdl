@@ -20,7 +20,7 @@ tokens {
 template "card" {
     row gap=10 align="end" {
         icon size=38 radius=19
-        col gap=4 grow=#true padding=12 radius=20 fill="layer" border="border" {
+        col gap=4 grow=#true padding=12 radius=20 fill="layer" border="accent/35" {
             row gap=8 align="center" {
                 text "{summary}" weight="title" lines=1 grow=#true
                 text "{time}" size=11 color="faint"
@@ -36,4 +36,9 @@ template "card" {
 
 rule app="Slack" {
     tokens { accent "#d38be0" }
+}
+
+// The bubble carries the colour; the card around it stays invisible.
+rule urgency="critical" {
+    tokens { border "none" }
 }

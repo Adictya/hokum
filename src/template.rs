@@ -1,7 +1,7 @@
 //! Builds a card's elements from its template and tokens.
 
 use rune::{Color, Cursor, El, Family, SurfaceFit, TextStyle, col, el, icon, row, spacer, text};
-use rune_kit::{Button, ButtonVariant, ControlSize, Kit, Progress};
+use rune_kit::{Kit, Progress};
 
 use crate::card::{Cards, Note};
 use crate::style::Mark;
@@ -35,6 +35,17 @@ impl Ctx<'_> {
             Cond::Not(c) => !self.has(c),
         }
     }
+}
+
+/// A line height for `size` on whole even points, so text lands on whole pixels at 1× and 2×
+/// and centres without half-pixel offsets (13 → 20, 11 → 16, 10 → 16, 15 → 22).
+pub fn line(size: f32) -> f32 {
+    ((size * 1.5) / 2.0).round() * 2.0
+}
+
+/// The nearest even size, so a glyph centres on whole pixels inside an even box.
+fn even(x: f32) -> f32 {
+    (x / 2.0).round() * 2.0
 }
 
 fn family(f: Font) -> Family {
@@ -104,9 +115,10 @@ fn letter(cx: &Ctx, size: f32, radius: f32) -> El {
     let ch = cx.n.app.chars().find(|c| c.is_alphanumeric()).unwrap_or('•').to_uppercase().to_string();
     let badge = el().key("badge").size(size, size).radius(radius).center().fill(cx.accent);
     if cx.n.urgency >= 2 {
-        return badge.child(icon(&rune_theme_opencode::icons::WARNING_BOLD, (size * 0.6).round()).color(Color::WHITE));
+        return badge.child(icon(&rune_theme_opencode::icons::WARNING_BOLD, even(size * 0.6)).color(Color::WHITE));
     }
-    badge.child(text(ch).font(TextStyle::new((size * 0.55).round(), 650.0).lh((size * 0.6).round())).color(Color::WHITE))
+    let glyph = even(size * 0.55);
+    badge.child(text(ch).font(TextStyle::new(glyph, 650.0).lh(glyph)).color(Color::WHITE))
 }
 
 /// The app's icon, or its letter without one.
@@ -149,7 +161,7 @@ fn label<S: Cards>(cx: &Ctx, n: &Node, in_row: bool) -> Vec<El> {
             let style = TextStyle {
                 family: family(props.font.unwrap_or(t.font)),
                 tracking: props.tracking.unwrap_or(0.0),
-                ..TextStyle::new(size, weight).lh((size * 1.5).round())
+                ..TextStyle::new(size, weight).lh(line(size))
             };
             let color = props.color.as_ref().unwrap_or(&t.text);
             let mut e = text(content).font(style).color(cx.paint(color));
@@ -183,32 +195,57 @@ fn label<S: Cards>(cx: &Ctx, n: &Node, in_row: bool) -> Vec<El> {
             None => Vec::new(),
         },
         Node::Progress { props } => match cx.n.value {
-            Some(v) => vec![decorate(cx, el().key("progress").w_full().pt(4.0), props, false).child(Progress::new(Some(v)).build(k))],
+            // No margins of its own: a line of text above already leaves room, and in a row it
+            // centres with its neighbours.
+            Some(v) => vec![decorate(cx, el().key("progress").w_full().center_y(), props, false).child(Progress::new(Some(v)).build(k))],
             None => Vec::new(),
         },
         Node::Actions { props } => {
             if cx.n.actions.is_empty() {
                 return Vec::new();
             }
+            // Buttons take the theme's font, text colours and corners: the first is filled, the
+            // rest are quiet.
+            let size = (t.font_size - 1.0).max(10.0);
+            let style = TextStyle { family: family(t.font), ..TextStyle::new(size, 550.0).lh(line(size)) };
+            let radius = (t.radius * 0.6).clamp(2.0, 8.0);
             let buttons = cx.n.actions.iter().enumerate().map(|(i, (key, label))| {
                 let key = key.clone();
-                Button::new(label.clone())
-                    .variant(if i == 0 { ButtonVariant::Neutral } else { ButtonVariant::Ghost })
-                    .control_size(ControlSize::Regular)
-                    .on_press(move |s: &mut S| s.invoke(id, &key))
-                    .build(k)
+                let primary = i == 0;
+                let mut b = row()
                     .key(format!("action-{i}"))
+                    .role("button")
+                    .label(label.clone())
+                    .h(26.0)
+                    .px(10.0)
+                    .center_y()
+                    .radius(radius)
+                    .hover(k.c.hover)
+                    .press(k.c.pressed)
+                    .cursor(Cursor::Pointer)
+                    .on_press(move |s: &mut S| s.invoke(id, &key))
+                    .child(text(label.clone()).key("label").font(style).color(cx.paint(if primary { &t.text } else { &t.muted })));
+                if primary {
+                    // Rune blends in linear light; `Kit::alpha` re-solves the opacity so it looks
+                    // like 8% does in a browser instead of three times that.
+                    b = b.fill(k.alpha(cx.paint(&t.text), 0.08));
+                }
+                b
             });
-            let mut r = row().key("actions").gap(6.0).flex_wrap().pt(2.0).children(buttons);
+            let mut r = row().key("actions").gap(4.0).flex_wrap().children(buttons);
             r = decorate(cx, r, props, true);
             vec![r]
         }
         Node::Close { props } => {
             let size = props.size.unwrap_or(22.0);
+            let glyph = even(size * 0.64);
             let color = props.color.as_ref().unwrap_or(&t.faint);
             vec![
                 row()
                     .key("close")
+                    // The hit area overhangs the padding, so the glyph itself lines up with the
+                    // card's edge like everything else does.
+                    .mr(-(size - glyph) / 2.0)
                     .role("button")
                     .label("Dismiss")
                     .size(size, size)
@@ -218,7 +255,7 @@ fn label<S: Cards>(cx: &Ctx, n: &Node, in_row: bool) -> Vec<El> {
                     .press(k.c.pressed)
                     .cursor(Cursor::Pointer)
                     .on_press(move |s: &mut S| s.dismiss(id))
-                    .child(icon(k.glyph.close, (size * 0.64).round()).color(cx.paint(color))),
+                    .child(icon(k.glyph.close, glyph).color(cx.paint(color))),
             ]
         }
         Node::Spacer => vec![spacer()],

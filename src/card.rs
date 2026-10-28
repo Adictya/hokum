@@ -199,7 +199,7 @@ pub fn samples() -> Vec<Note> {
     a.actions = vec![("reply".into(), "Reply".into()), ("later".into(), "Later".into())];
     a.has_default = true;
     a.icon_src = crate::icons::for_app("", Some("slack"), "Slack").map(Source::File);
-    let mut b = Note::new(2, "Volume", "Volume", "");
+    let mut b = Note::new(2, "Volume", "Speakers", "");
     b.value = Some(0.62);
     b.tag = Some("volume".into());
     b.icon_src = crate::icons::icon("audio-volume-high").map(Source::File);
