@@ -180,13 +180,12 @@ function embed(doc: Doc) {
   }).trim()
 }
 
-// The words under the hero, and the start of the markdown.
+// The headline under the hero, and the start of the markdown.
 const headline = "Notifications for Wayland."
-const subline = "A replacement for mako, dunst and swaync. Themes, per-app rules and Do not disturb, all in one config file."
 
 const markdown = `# Hokum
 
-${headline} ${subline}
+${headline}
 
 ${intro}
 
@@ -397,7 +396,6 @@ ${products.map((p) => `      <a class="menu-item" href="${p.url}">${productIcon(
 <main>
 <section class="intro">
   <h1>${escape(headline)}</h1>
-  <p class="lede">${escape(subline)}</p>
   <div class="cta" role="group" aria-label="Install">
 ${installPanels.map((t, i) => `    <input type="radio" name="platform" id="p-${t.id}"${i === 0 ? " checked" : ""}>`).join("\n")}
 ${installPanels.map((t) => `    <div class="panel" id="panel-${t.id}">${t.html}</div>`).join("\n")}
