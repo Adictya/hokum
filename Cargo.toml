@@ -1,6 +1,6 @@
 [package]
 name = "hokum"
-version = "0.0.1"
+version = "0.0.2"
 edition = "2024"
 license = "MIT"
 description = "Hokum (hokum.app): a freedesktop notification daemon for Wayland, drawn with Rune."
