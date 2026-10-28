@@ -129,22 +129,13 @@
   let cards = [] // newest first
   let geo = { w: 420, x0: 0, top: 40, bottom: 0 }
 
-  // Cards sit in the page's top-right corner, under the header, on the page's margin. They
-  // stop above the headline wherever the two would share a column (narrow screens), and above
-  // Skip and Replay otherwise.
+  // Cards fill the right-hand column (#desk), under its clock line, and stop above Skip and Replay. The
+  // column has a fixed height, so the stack never moves the page.
   function measureGeo() {
     const vw = body.clientWidth
     const vh = body.clientHeight
-    const box = body.getBoundingClientRect()
-    const intro = document.getElementById("intro").getBoundingClientRect()
-    // The page margin, as the headline sits on it (--edge is a calc, so read it off the layout).
-    const edge = intro.left - box.left
-    const top = parseFloat(getComputedStyle(body).getPropertyValue("--cards-top")) || 72
-    const w = Math.min(420, vw - edge * 2)
-    const x0 = vw - edge - w
-    const shares = intro.right - box.left > x0 - 24
-    const bottom = shares ? intro.top - box.top - 20 : vh - 56
-    geo = { w, x0, top, bottom, vw, vh }
+    const w = Math.min(420, vw)
+    geo = { w, x0: vw - w, top: 34, bottom: vh - 40, vw, vh }
     for (const c of cards) {
       c.el.style.setProperty("--w", w + "px")
       c.h = c.el.offsetHeight
@@ -390,7 +381,6 @@
     if (scene) body.dataset.scene = scene.scene
   }
   document.fonts.ready.then(() => { measureGeo(); layout() })
-  // The headline's width decides how far down the cards may go; it changes as the fonts arrive.
-  new ResizeObserver(() => { measureGeo(); layout() }).observe(document.getElementById("intro"))
+  new ResizeObserver(() => { measureGeo(); layout() }).observe(body)
   requestAnimationFrame((n) => { last = n; requestAnimationFrame(frame) })
 })()

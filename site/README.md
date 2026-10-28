@@ -7,10 +7,10 @@ same page as one self-contained markdown document: install, usage, the configura
 the complete theme guide (`docs/themes.md`) and the source of every built-in theme, with links
 between them rewritten to headings. Hokum's **Make your own theme** prompt points agents here.
 
-The HTML page is one screen and a footer, with no images. The product switcher (the `products`
-list in `build.ts`) and GitHub float over a black page; the story's cards arrive in its top-right
-corner; the headline, subline and install row (`site.js` guesses the platform;
-`?platform=arch|debian|fedora|binary`, `?cpu=arm64`) sit bottom left. Everything else (install
+The HTML page is one screen and a footer, with no images: black, the product switcher (the
+`products` list in `build.ts`) and GitHub on top, then two columns on one container. Left, the
+headline and the install row (`site.js` guesses the platform; `?platform=arch|debian|fedora|binary`,
+`?cpu=arm64`); right, a fixed-height column where the story's cards play under a clock line. Everything else (install
 details, usage, configuration, the theme guide and every built-in theme) is only in the markdown
 agents get.
 

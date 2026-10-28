@@ -175,11 +175,10 @@ function embed(doc: Doc) {
 
 // The headline under the hero, and the start of the markdown.
 const headline = "Notifications for Wayland."
-const subline = "Themes, per-app rules and Do not disturb, all in one config file."
 
 const markdown = `# Hokum
 
-${headline} ${subline}
+${headline}
 
 ${intro}
 
@@ -282,7 +281,7 @@ const html = `<!doctype html>
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-<div class="desk first" id="desk">
+<div class="first">
   <div class="wall" aria-hidden="true"><div class="stars"></div></div>
   <header class="top">
     <div class="switcher">
@@ -297,22 +296,24 @@ ${products.map((p) => `        <a class="menu-item" href="${p.url}">${productIco
         <a class="menu-foot" href="https://anoma.ly">anoma.ly →</a>
       </div>
     </div>
-    <span class="clock" id="clock" aria-hidden="true"></span>
     <a class="top-github" href="${repo}" rel="noopener">${githubIcon}<span>GitHub</span></a>
   </header>
-  <div class="stack" id="stack" aria-live="polite" aria-label="Notifications"></div>
-  <div class="more" id="more" aria-hidden="true"></div>
-  <section class="intro" id="intro">
-    <h1>${escape(headline)}</h1>
-    <p class="sub">${escape(subline)}</p>
-    ${installRow}
-  </section>
-  <nav class="controls" aria-label="Story">
-    <button id="skip" type="button">skip</button>
-    <button id="replay" type="button">replay</button>
-  </nav>
+  <div class="split">
+    <section class="intro" id="intro">
+      <h1>${escape(headline)}</h1>
+      ${installRow}
+    </section>
+    <div class="desk" id="desk">
+      <div class="clock" id="clock" aria-hidden="true"></div>
+      <div class="stack" id="stack" aria-live="polite" aria-label="Notifications"></div>
+      <div class="more" id="more" aria-hidden="true"></div>
+      <nav class="controls" aria-label="Story">
+        <button id="skip" type="button">skip</button>
+        <button id="replay" type="button">replay</button>
+      </nav>
+    </div>
+  </div>
 </div>
-
 
 <footer class="foot">
   <a class="foot-brand" href="https://anoma.ly">${anomalyMark}<span>Anomaly</span></a>
