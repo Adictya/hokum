@@ -4,7 +4,7 @@ Everything about Hokum lives in one file, `~/.config/hokum/config.kdl` (`$XDG_CO
 It starts from a theme and overrides whatever you like:
 
 ```kdl
-theme "neon"                 // start from a theme (default: "soft")
+theme "signal"               // start from a theme (default: "soft")
 
 behaviour {
     position "bottom-right"
@@ -33,10 +33,10 @@ keeps drawing with the last config that worked.
 
 **Themes** use the same format. Built-in ones are fixed: [Soft](../themes/soft.kdl),
 [Crisp](../themes/crisp.kdl), [Capsule](../themes/capsule.kdl), [Ribbon](../themes/ribbon.kdl),
-[Terminal](../themes/terminal.kdl), [Bubble](../themes/bubble.kdl), [Neon](../themes/neon.kdl)
+[Terminal](../themes/terminal.kdl), [Bubble](../themes/bubble.kdl), [Signal](../themes/signal.kdl)
 and [Pill](../themes/pill.kdl). Referencing one keeps you on its latest version with your
 overrides on top. **Clone to edit** copies it into `~/.config/hokum/themes/` to change
-everything; `theme "my-neon"` then refers to `themes/my-neon.kdl`. Any path works too
+everything; `theme "my-signal"` then refers to `themes/my-signal.kdl`. Any path works too
 (`theme "~/dotfiles/hokum/work.kdl"`). A theme can itself start from another theme.
 
 A theme names itself with `name "…"` (shown in the gallery). The built-in card is a template,

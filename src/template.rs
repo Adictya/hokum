@@ -1,7 +1,7 @@
 //! Builds a card's elements from its template and tokens.
 
 use rune::{Color, Cursor, El, Family, SurfaceFit, TextStyle, col, el, icon, row, spacer, text};
-use rune_kit::{Kit, Progress};
+use rune_kit::Kit;
 
 use crate::card::{Cards, Note};
 use crate::style::Mark;
@@ -16,8 +16,38 @@ pub struct Ctx<'a> {
 }
 
 impl Ctx<'_> {
+    /// A colour for this card. `text`, `muted` and `faint` mean the theme's tokens of those
+    /// names (at the given opacity); the tokens themselves resolve against the kit's palette.
     pub fn paint(&self, p: &Paint) -> Color {
+        if let Paint::Named(name, a) = p {
+            let token = match name.as_str() {
+                "text" => Some(&self.t.text),
+                "muted" => Some(&self.t.muted),
+                "faint" => Some(&self.t.faint),
+                _ => None,
+            };
+            if let Some(token) = token {
+                let c = token.resolve(self.k, self.accent);
+                return if *a < 1.0 { c.alpha(c.a * a) } else { c };
+            }
+        }
         p.resolve(self.k, self.accent)
+    }
+
+    /// A text colour, opaque: translucent text (`"white/80"`) is mixed over the card's fill
+    /// the way a browser would (in sRGB), since glyphs drawn with alpha come out darker than
+    /// intended.
+    pub fn ink(&self, p: &Paint) -> Color {
+        let c = self.paint(p);
+        if c.a >= 0.999 {
+            return c;
+        }
+        let under = match &self.t.fill {
+            crate::theme::Fill::Solid(f) => self.paint(f),
+            crate::theme::Fill::Gradient(a, b) => mix(self.paint(a), self.paint(b), 0.5),
+        };
+        let under = if under.a < 0.5 { self.k.c.layer_01 } else { under };
+        mix(under, Color { a: 1.0, ..c }, c.a)
     }
 
     fn has(&self, c: &Cond) -> bool {
@@ -46,6 +76,14 @@ pub fn line(size: f32) -> f32 {
 /// The nearest even size, so a glyph centres on whole pixels inside an even box.
 fn even(x: f32) -> f32 {
     (x / 2.0).round() * 2.0
+}
+
+/// `a` to `b` by `t`, mixed in sRGB like CSS, returned as Rune's linear colour.
+fn mix(a: Color, b: Color, t: f32) -> Color {
+    let enc = |v: f32| if v <= 0.003_130_8 { v * 12.92 } else { 1.055 * v.powf(1.0 / 2.4) - 0.055 };
+    let dec = |v: f32| if v <= 0.040_45 { v / 12.92 } else { ((v + 0.055) / 1.055).powf(2.4) };
+    let m = |x: f32, y: f32| dec(enc(x) + (enc(y) - enc(x)) * t);
+    Color { r: m(a.r, b.r), g: m(a.g, b.g), b: m(a.b, b.b), a: 1.0 }
 }
 
 fn family(f: Font) -> Family {
@@ -164,7 +202,7 @@ fn label<S: Cards>(cx: &Ctx, n: &Node, in_row: bool) -> Vec<El> {
                 ..TextStyle::new(size, weight).lh(line(size))
             };
             let color = props.color.as_ref().unwrap_or(&t.text);
-            let mut e = text(content).font(style).color(cx.paint(color));
+            let mut e = text(content).font(style).color(cx.ink(color));
             // In a column text wraps across the width; in a row it keeps its own width (one
             // line) unless it grows into the row's free space.
             let lines = props.lines.or(in_row.then_some(1));
@@ -195,9 +233,17 @@ fn label<S: Cards>(cx: &Ctx, n: &Node, in_row: bool) -> Vec<El> {
             None => Vec::new(),
         },
         Node::Progress { props } => match cx.n.value {
-            // No margins of its own: a line of text above already leaves room, and in a row it
-            // centres with its neighbours.
-            Some(v) => vec![decorate(cx, el().key("progress").w_full().center_y(), props, false).child(Progress::new(Some(v)).build(k))],
+            // The theme's own colours: a faint track and a bar in its muted text colour (or
+            // `color`), so it reads on any fill. No margins of its own: a line of text above
+            // already leaves room, and in a row it centres with its neighbours.
+            Some(v) => {
+                let h = props.height.unwrap_or(6.0);
+                let track = k.alpha(cx.paint(&t.text), 0.16);
+                let fill = cx.paint(props.color.as_ref().unwrap_or(&t.muted));
+                let bar = el().key("bar").w_frac(v.clamp(0.0, 1.0)).h_full().radius(h / 2.0).fill(fill);
+                let e = el().key("progress").w_full().h(h).radius(h / 2.0).fill(track).clip_soft(0.0).child(bar);
+                vec![decorate(cx, e, &Props { height: None, ..props.clone() }, false)]
+            }
             None => Vec::new(),
         },
         Node::Actions { props } => {
@@ -224,7 +270,7 @@ fn label<S: Cards>(cx: &Ctx, n: &Node, in_row: bool) -> Vec<El> {
                     .press(k.c.pressed)
                     .cursor(Cursor::Pointer)
                     .on_press(move |s: &mut S| s.invoke(id, &key))
-                    .child(text(label.clone()).key("label").font(style).color(cx.paint(if primary { &t.text } else { &t.muted })));
+                    .child(text(label.clone()).key("label").font(style).color(cx.ink(if primary { &t.text } else { &t.muted })));
                 if primary {
                     // Rune blends in linear light; `Kit::alpha` re-solves the opacity so it looks
                     // like 8% does in a browser instead of three times that.
@@ -255,7 +301,7 @@ fn label<S: Cards>(cx: &Ctx, n: &Node, in_row: bool) -> Vec<El> {
                     .press(k.c.pressed)
                     .cursor(Cursor::Pointer)
                     .on_press(move |s: &mut S| s.dismiss(id))
-                    .child(icon(k.glyph.close, glyph).color(cx.paint(color))),
+                    .child(icon(k.glyph.close, glyph).color(cx.ink(color))),
             ]
         }
         Node::Spacer => vec![spacer()],

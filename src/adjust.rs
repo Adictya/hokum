@@ -62,7 +62,7 @@ impl Adjust<'_> {
 }
 
 /// What each control shows for `t` (the merged tokens). None when the theme uses a value the
-/// control doesn't offer (Neon's 14 point corners, Terminal's padding), so nothing is selected.
+/// control doesn't offer (Signal's 18 point corners, Terminal's padding), so nothing is selected.
 pub fn corners(t: &Tokens) -> Option<Corners> {
     Corners::ALL.into_iter().find(|c| c.radii().0 == t.radius)
 }

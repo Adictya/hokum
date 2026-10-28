@@ -470,7 +470,7 @@ mod tests {
 
     #[test]
     fn edits_keep_comments_and_order() {
-        let mut e = edit("// mine\ntheme \"neon\" // base\n\ntokens {\n    radius 10 // rounder\n    mark \"letter\"\n}\n");
+        let mut e = edit("// mine\ntheme \"signal\" // base\n\ntokens {\n    radius 10 // rounder\n    mark \"letter\"\n}\n");
         e.set_token("radius", &[Value::Number(16.0)]);
         e.set_token("border", &[Value::Number(1.0), Value::Text("border".into())]);
         e.set_theme("soft");

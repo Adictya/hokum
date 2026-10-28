@@ -25,7 +25,7 @@ pub const BUNDLED: &[(&str, &str)] = &[
     ("ribbon", include_str!("../themes/ribbon.kdl")),
     ("terminal", include_str!("../themes/terminal.kdl")),
     ("bubble", include_str!("../themes/bubble.kdl")),
-    ("neon", include_str!("../themes/neon.kdl")),
+    ("signal", include_str!("../themes/signal.kdl")),
     ("pill", include_str!("../themes/pill.kdl")),
 ];
 
@@ -69,7 +69,7 @@ pub enum Font {
 
 const NAMES: &[&str] = &[
     "layer", "layer-2", "layer-3", "page", "base", "deep", "text", "muted", "faint", "border", "border-strong", "hover",
-    "accent", "app", "danger", "warning", "success", "info", "white", "black", "transparent",
+    "accent", "accent-deep", "accent-deeper", "app", "danger", "warning", "success", "info", "white", "black", "transparent",
 ];
 
 impl Paint {
@@ -97,6 +97,9 @@ impl Paint {
                     "border-strong" => c.border_strong,
                     "hover" => c.hover,
                     "accent" | "app" => accent,
+                    // A rich, dark version of the accent that white text reads on (see `deep`).
+                    "accent-deep" => deep(accent, 0.0),
+                    "accent-deeper" => deep(accent, 0.07),
                     "danger" => c.danger.icon,
                     "warning" => c.warning.icon,
                     "success" => c.success.icon,
@@ -109,6 +112,30 @@ impl Paint {
             }
         }
     }
+}
+
+/// `c` as a background for white text: hues that turn muddy when darkened (yellow to olive)
+/// move to the nearest clean one, chroma rises a little, and lightness drops until white text
+/// meets WCAG's 4.5:1 contrast, then `extra` further.
+pub fn deep(c: Color, extra: f32) -> Color {
+    let [l, a, b, alpha] = c.to_oklab();
+    let mut hue = b.atan2(a).to_degrees().rem_euclid(360.0);
+    if (65.0..=125.0).contains(&hue) {
+        hue = if hue < 95.0 { 45.0 } else { 150.0 };
+    }
+    let chroma = (a.hypot(b) * 1.25).clamp(0.11, 0.17);
+    let (s, co) = hue.to_radians().sin_cos();
+    let at = |l: f32| {
+        let c = Color::from_oklab([l, chroma * co, chroma * s, alpha]);
+        Color { r: c.r.clamp(0.0, 1.0), g: c.g.clamp(0.0, 1.0), b: c.b.clamp(0.0, 1.0), a: alpha }
+    };
+    let luminance = |c: Color| 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
+    let mut l = l.min(0.62);
+    // 1.05 / (Y + 0.05) >= 4.5 needs Y <= 0.183; aim a little under.
+    while l > 0.2 && luminance(at(l)) > 0.17 {
+        l -= 0.01;
+    }
+    at((l - extra).max(0.15))
 }
 
 /// Every value a card's look is made of, resolved for one card.
@@ -504,7 +531,7 @@ pub struct Theme {
     pub name: String,
     /// Where it came from: a bundled id, a theme's file stem, or a path.
     pub id: String,
-    /// The theme this one starts from (`theme "neon"`).
+    /// The theme this one starts from (`theme "signal"`).
     pub base: Option<String>,
     pub behave: Behave,
     pub tokens: Overrides,
@@ -1090,7 +1117,7 @@ pub fn parse(src: &str, id: &str) -> Result<Theme, Vec<Problem>> {
             }
             "theme" => match args.first().and_then(|v| v.as_string()) {
                 Some(base) => theme.base = Some(base.into()),
-                None => p.problem(node, "`theme` names the theme to start from, like `theme \"neon\"`"),
+                None => p.problem(node, "`theme` names the theme to start from, like `theme \"signal\"`"),
             },
             "behaviour" | "behavior" => theme.behave = p.behave(node),
             "tokens" => {
@@ -1174,7 +1201,7 @@ pub enum Found {
     File(PathBuf),
 }
 
-/// `"neon"` is bundled; `"my-theme"` is themes/my-theme.kdl; anything with a `/` (or `~`) is
+/// `"signal"` is bundled; `"my-theme"` is themes/my-theme.kdl; anything with a `/` (or `~`) is
 /// a path.
 pub fn find(id: &str) -> Option<Found> {
     if let Some((_, src)) = BUNDLED.iter().find(|(b, _)| *b == id) {
@@ -1261,6 +1288,18 @@ rule app="Spotify" { hide }
         n.summary = "song".into();
         assert!(t.routing(&n).hide);
         assert!(glob("a*c", "abbbc") && !glob("a*c", "abd") && glob("*", "") && glob("Slack", "slack"));
+    }
+
+    #[test]
+    fn deep_accents_always_carry_white_text() {
+        for hue in (0..360).step_by(5) {
+            for (l, c) in [(0.64, 0.13), (0.85, 0.05), (0.45, 0.2), (0.7, 0.02)] {
+                let d = deep(rune::oklch(l, c, hue as f32), 0.0);
+                let y = 0.2126 * d.r + 0.7152 * d.g + 0.0722 * d.b;
+                let contrast = 1.05 / (y + 0.05);
+                assert!(contrast >= 4.5, "hue {hue} l {l} c {c}: {contrast:.2}");
+            }
+        }
     }
 
     #[test]

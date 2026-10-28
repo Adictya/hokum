@@ -418,7 +418,7 @@ pub fn headless() {
             ("ribbon", |s| bundled(s, "ribbon")),
             ("terminal", |s| bundled(s, "terminal")),
             ("bubble", |s| bundled(s, "bubble")),
-            ("neon", |s| bundled(s, "neon")),
+            ("signal", |s| bundled(s, "signal")),
             ("pill", |s| bundled(s, "pill")),
         ],
         fonts: rune_theme_opencode::FONTS,
