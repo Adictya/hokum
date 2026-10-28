@@ -174,13 +174,10 @@ window.STORY_BRANCHES = {
     { ...G, at: 42.6, body: "can't believe u didn't invite me", time: "2028-10-13T23:58" },
   ] },
 }
-// The secret ending: the visitor pays Gary. `at` counts from the moment they press Pay.
+// Pressing Pay doesn't help: the payment fails, and the story goes on as if he'd declined.
+// `at` counts from the moment Pay is pressed; the trunk's "You declined" card follows.
 window.STORY_PAY = [
-  { at: 0.5, app: "Venmo", title: "You paid Gary $40", body: "for the thing 🍕", time: "2026-03-09T12:42" },
-  { at: 2.2, app: "Messages", title: "Gary", body: "thx 🙏", time: "2026-03-09T12:43", avatar: "G" },
-  { at: 3.8, app: "Messages", title: "Gary", body: "same time next week?", time: "2026-03-09T12:44", avatar: "G" },
-  { at: 5.6, app: "Calendar", title: "Pizza with Gary 🍕", body: "Sat, Mar 14 · 7:00 PM · his place", time: "2026-03-09T12:46" },
-  { at: 10.6, app: "Calendar", title: "Dentist", body: "Tue, Mar 17 · 9:00 AM · Dr. Okafor", time: "2026-03-17T08:00", final: true },
+  { at: 0.4, app: "Venmo", urgency: 2, title: "Payment failed", body: "Insufficient funds ($3.12). Gary's request was declined.", time: "2026-03-09T12:41" },
 ]
 
 // The stack clears this long before the final card, which then arrives alone and stays.

@@ -173,7 +173,7 @@ This is ${origin}, the whole site as one markdown document: installing and using
 configuration reference, the complete guide to writing a theme, and the source of every
 built-in theme. Browsers get the same page as HTML, which opens on a crime story told entirely
 in notification cards, stacking up in the corner of a desktop, with one of four endings picked at
-random. It opens on Gary's $40 Venmo request and waits for the visitor to press Pay or Decline (Decline is the story; Pay is a short happy ending). Below the story is one picture of the settings window, where you pick a theme. If you are a coding agent asked to make a
+random. It opens on Gary's $40 Venmo request and waits for the visitor to press Pay or Decline (either way he declines: Pay fails for insufficient funds). Below the story is one picture of the settings window, where you pick a theme. If you are a coding agent asked to make a
 Hokum theme, read [Writing a theme](#${anchors.get("themes#")}) and
 [Checking your work](#${anchors.get("themes#checking-your-work")}), then write the theme file
 and set \`theme "<id>"\` in the user's config.

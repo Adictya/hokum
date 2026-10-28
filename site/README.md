@@ -25,7 +25,7 @@ agents get.
 | `fx.js` | Moments: police lights, coins, confetti, hearts, the liftoff, funeral dims, the stillness before Gary's last text (no shakes or particles with reduced motion) |
 | `hero.js` | The cards: Capsule's look and spring, stacking (older cards leave when the column is full), drag, fling, dismiss, the clock, and Replay once the story ends |
 
-The story waits on Gary's $40 Venmo request until the visitor presses Pay or Decline (or 7 s pass: declined). Decline is the story; Pay is a short happy ending (`?branch=pay`). That click is also what lets the page make sound. Each visit plays the trunk and one random branch; Replay picks one not seen yet. `?branch=1..4`
+The story waits on Gary's $40 Venmo request until the visitor presses Pay or Decline (or 7 s pass: declined). Either way he declines: Pay fails for insufficient funds and the story goes on (`?branch=pay` presses Pay). That click is also what lets the page make sound. Each visit plays the trunk and one random branch; Replay picks one not seen yet. `?branch=1..4`
 or `?branch=empire|dead|agent|love` forces one, `?t=60` starts 60 s in. The
 prototype at https://anoma.ly/labs/hokum-story (branch `hero-story`) runs the same `story.js`
 and `hero.js` logic; keep them in sync. The story pauses while scrolled off screen, and

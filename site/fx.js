@@ -181,6 +181,7 @@
     if (!reduce.matches) anim(stack, [{ transform: "translateY(0)" }, { transform: `translateY(${s.urgency === 2 ? 5 : 2}px)` }, { transform: "none" }], { duration: 220, easing: "ease-out" })
 
     if (s.final) return void stillness(el)
+    if (s.title === "Payment failed") return void shake(stack, 5, 360)
     if (s.app === "Mission Control") {
       if (!reduce.matches) anim(page, [0, 1, 2, 3, 4, 3, 2, 1, 0].flatMap((k, i, a) => [{ transform: `translate(${(i % 2 ? 1 : -1) * k}px, ${(i % 2 ? -1 : 1) * k * 0.6}px)` }]), { duration: 2400, easing: "linear" })
       return void setTimeout(() => streaks(3600), 900)
@@ -191,9 +192,8 @@
     }
     if (s.app === "Waze" && /^Police reported/.test(title)) return void police(0.35, 700)
     if (/\$48,000,000/.test(body)) return void coins(el, 120)
-    if (s.app === "Venmo" && /\$|sent you/.test(title + body) && !/declined/i.test(title)) return void coins(el, /You paid/.test(title) ? 36 : 18)
+    if (s.app === "Venmo" && /\$|sent you/.test(title + body) && !/declined/i.test(title)) return void coins(el, 18)
     if (s.app === "Fitness" && /Move ring/.test(title)) return void confetti(el, 70)
-    if (/Pizza with Gary/.test(title)) return void confetti(el, 50)
     if (s.app === "Hinge" || /marry me/.test(body)) return void hearts(el, 16)
     if (s.app === "Calendar" && /wedding/i.test(title) && document.getElementById("desk").dataset.branch === "love") { hearts(el, 14); return void confetti(el, 80) }
     if (s.app === "Zola") return void hearts(el, 8)

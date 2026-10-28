@@ -1,7 +1,7 @@
 ;(() => {
   // The trunk, then one of the branches: random per visit, a different one on each replay,
-  // or the one `?branch=` names (1–4 or its key). `?branch=pay` takes the secret ending: the
-  // visitor pays Gary at the opening choice.
+  // or the one `?branch=` names (1–4 or its key). `?branch=pay` presses Pay at the opening
+  // choice (it fails), then plays a random ending.
   const TRUNK = window.STORY_TRUNK
   const BRANCHES = window.STORY_BRANCHES
   const KEYS = Object.keys(BRANCHES)
@@ -295,9 +295,10 @@
 
   // Which sound a card makes.
   function kind(s) {
+    if (s.title === "Payment failed") return "error"
     if (s.urgency === 2) return s.app === "Mission Control" ? "rumble" : "alert"
     // The choice already made its sound when it was pressed; its receipt just chimes.
-    if (/^You (paid|declined) Gary/.test(s.title)) return "chime"
+    if (/^You declined Gary/.test(s.title)) return "chime"
     if (/wedding/i.test(s.title) && s.app === "Calendar") return "wedding"
     if (s.app === "Venmo" || (s.app === "Bank" && /\$/.test(s.body || ""))) return "money"
     if (s.app === "Messages" || s.app === "WhatsApp") return "pop"
@@ -319,11 +320,11 @@
     }
     choiceCard?.el.querySelectorAll(".actions button").forEach((b) => (b.disabled = true))
     if (pick === "pay") {
+      // The payment fails; the trunk carries on with "You declined", same as pressing Decline.
       const at = t
-      STORY = [...STORY.slice(0, next), ...window.STORY_PAY.map((c) => ({ ...c, at: at + c.at }))]
+      const fail = window.STORY_PAY.map((c) => ({ ...c, at: at + c.at }))
+      STORY = [...STORY.slice(0, next), ...fail, ...STORY.slice(next)]
       stamp()
-      body.dataset.branch = "pay"
-      if (button) sound.play("money")
     } else if (button) sound.play("declined")
     // Pressed or not, the declined line arrives on cue.
   }
