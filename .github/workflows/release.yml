@@ -51,7 +51,7 @@ on:
   push:
     branches: [dev]
     # Docs alone cut no dev build.
-    paths-ignore: ["docs/**", "**/*.md"]
+    paths-ignore: ["docs/**", "**/*.md", "site/**"]
 
 permissions:
   contents: read

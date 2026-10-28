@@ -389,7 +389,7 @@ fn themes(s: &Ui, k: &Kit) -> El {
 }
 
 const DOCS: &str = "https://hokum.app";
-const PROMPT: &str = "Read https://hokum.app/themes.md and create a Hokum theme for me, then switch my config to it. I want it to look like: ";
+const PROMPT: &str = "Read https://hokum.app and create a Hokum theme for me, then switch my config to it. I want it to look like: ";
 
 /// Custom themes are written by a coding agent from the docs, not in this window.
 fn own_theme(s: &Ui, k: &Kit) -> El {

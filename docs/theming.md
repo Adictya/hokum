@@ -48,7 +48,7 @@ block is reported as a problem).
 
 **Making a theme** is a job for your coding agent: **Make your own theme** under Appearance in
 the settings window has a prompt to copy. It points the agent at
-[hokum.app/themes.md](https://hokum.app/themes.md) ([themes.md](themes.md) here), a complete
+[hokum.app](https://hokum.app) (the same guide as [themes.md](themes.md) here), a complete
 guide to the format (every token, the template language, rules, two worked examples, and how to
 check a theme with `hokum check` and render it headlessly).
 

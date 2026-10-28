@@ -61,7 +61,7 @@ click-through overlay and hosts the settings window. Launching `hokum` again sho
 - **Themes:** eight built in (Soft, Crisp, Capsule, Ribbon, Terminal, Bubble, Signal, Pill), shown
   in a gallery as real cards. Capsule, with app icons, is the default. Custom themes are written
   by your coding agent: the settings window gives you a prompt that points it at
-  [hokum.app/themes.md](https://hokum.app/themes.md) ([docs/themes.md](docs/themes.md)), the
+  [hokum.app](https://hokum.app) (the same guide as [docs/themes.md](docs/themes.md)), the
   complete guide to the format. A Rhai script can rewrite
   or drop notifications too.
 - **Per app:** mute, how long its cards stay, and breaking through Do not disturb, for every app
