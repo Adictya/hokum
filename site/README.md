@@ -1,32 +1,53 @@
 # hokum.app
 
-The website for Hokum: one page, generated from the repository so it can't drift from the docs.
+The website for Hokum: one URL, generated from the repository so it can't drift from the docs.
+
+`https://hokum.app/` is the only page. Browsers get HTML; agents and command line tools get the
+same page as one self-contained markdown document: install, usage, the configuration reference,
+the complete theme guide (`docs/themes.md`) and the source of every built-in theme, with links
+between them rewritten to headings. Hokum's **Make your own theme** prompt points agents here.
 
 | Source | Becomes |
 |---|---|
-| `README.md` | The intro, features (the bold bullets under `## Use`), install, usage, and `/index.md` |
-| `docs/theming.md` | The Configuration section, and `/theming.md` verbatim |
-| `docs/themes.md` | The Make your own theme section, and `/themes.md` verbatim (the app's prompt points agents here) |
-| `themes/*.kdl` | The theme gallery (name and leading comment) and `/themes/<id>.kdl` |
-| `Cargo.toml` | The version shown in the hero and footer |
+| `README.md` | The intro, install tabs, usage and features (the bold bullets under `## Use`) |
+| `docs/theming.md` | Configure, with the full reference folded under it |
+| `docs/themes.md` | Make your own theme, with the full guide folded under it |
+| `themes/*.kdl` | The theme gallery (name and leading comment); inlined in the markdown |
+| `Cargo.toml` | The version in the masthead |
 | `site/screenshots/` | Theme screenshots, rendered by Hokum itself (below) |
 
-`/llms.txt` is an index for agents ([llmstxt.org](https://llmstxt.org)). Links between the docs
-resolve on the site: `themes.md`, `theming.md#scripts` and `../themes/terminal.kdl` work from the
-raw markdown, and become section anchors on the page.
+## Who gets markdown
+
+`worker.ts` decides per request to `/` (and sends `Vary: Accept, User-Agent`):
+
+- `?format=md` or `?format=html` wins.
+- Markdown when `Accept` rates `text/markdown` at least as high as `text/html` (so curl's `*/*`
+  gets markdown), or `text/plain` higher than it, or doesn't mention `text/html` at all.
+- Markdown for user agents that aren't browsers: HTTP libraries and CLIs (curl, wget,
+  python-requests, node-fetch, undici, Go-http-client, …), AI fetchers and crawlers (Claude,
+  GPTBot, ChatGPT-User, OAI-SearchBot, PerplexityBot, …), coding agents (opencode, …), headless
+  browsers, and anything without `Mozilla` in it.
+- Otherwise (a browser: `text/html` in `Accept` and a Mozilla user agent) HTML.
+
+Every other path except assets (`/style.css`, `/favicon.svg`, `/assets/*`, `/screenshots/*`)
+redirects to `/`, including the old `/themes.md`, `/theming.md`, `/index.md`, `/llms.txt` and
+`/themes/*.kdl`. `www.hokum.app` redirects to the apex.
 
 ## Build
 
 ```sh
 cd site
 bun install
-bun run build          # writes site/dist
-bunx wrangler dev      # serves dist through the Worker, as in production
+bun run build                       # writes site/dist (index.html, page.md, assets)
+bunx wrangler dev                   # serves dist through the Worker, as in production
+curl -s localhost:8787 | head       # markdown
+open 'http://localhost:8787/?format=html'
 ```
 
 `build.ts` is the whole generator: `marked` for the markdown, a template string for the page,
-`style.css` for the look. No JavaScript is loaded from elsewhere, and the only script on the page
-adds copy buttons. Inter is self-hosted from `assets/`.
+`style.css` for the look (one column, Inter for prose and IBM Plex Mono for anything typed, after
+opentunnel.xyz). No JavaScript is loaded from elsewhere; the inline script only adds copy buttons
+and opens a folded reference when a link points into it. Fonts are self-hosted from `assets/`.
 
 ## Screenshots
 
@@ -49,8 +70,6 @@ cd site
 bun run deploy         # build, then wrangler deploy
 ```
 
-The Worker `hokum-site` on the Anomaly account serves `dist/` as static assets
-(`wrangler.jsonc`). It owns the custom domains `hokum.app` and `www.hokum.app`; `worker.ts`
-redirects `www` to the apex and gives `.md` files `text/markdown; charset=utf-8` and `.txt` /
-`.kdl` files `text/plain; charset=utf-8`. `_headers` adds the security headers and caching.
-workers.dev and preview URLs are off. Deploys are by hand for now.
+The Worker `hokum-site` on the Anomaly account (`wrangler.jsonc`) serves `dist/` and owns the
+custom domains `hokum.app` and `www.hokum.app`. workers.dev and preview URLs are off. Pushes that
+only touch `site/` don't trigger a Hokum release.
