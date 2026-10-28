@@ -183,7 +183,7 @@
     c.leaving = true
     // A short glide out while it fades, as Hokum's cards leave. (Gliding the card's full width
     // used to carry it past the column, where it showed beside the stack as a ghost.)
-    c.tx = 56
+    c.tx = 24
     c.to = 0
     c.el.style.pointerEvents = "none"
     c.el.style.zIndex = "0"
@@ -205,7 +205,7 @@
       if (c.leaving) continue
       if (shown > 0 && y + c.h > geo.bottom) {
         c.leaving = true
-        c.tx = 56
+        c.tx = 24
         c.to = 0
         c.el.style.pointerEvents = "none"
         c.el.style.zIndex = "0"
