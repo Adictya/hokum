@@ -58,7 +58,8 @@
   const MAX = 260
   function size() {
     const dpr = Math.min(2, devicePixelRatio || 1)
-    canvas.width = innerWidth * dpr
+    // The viewport without its scrollbar, as the fixed canvas covers it.
+    canvas.width = document.documentElement.clientWidth * dpr
     canvas.height = innerHeight * dpr
     g.setTransform(dpr, 0, 0, dpr, 0, 0)
   }
