@@ -11,6 +11,10 @@ const assets = /^\/(assets\/|(style\.css|favicon\.svg|story\.js|sound\.js|hero\.
 const agents =
   /curl|wget|httpie|python-requests|python-urllib|aiohttp|httpx|node-fetch|undici|axios|got\b|okhttp|go-http-client|java\/|libwww|ruby|php|rust|reqwest|deno|bun\/|claude|anthropic|gptbot|chatgpt|oai-searchbot|openai|perplexity|cohere|gemini|google-extended|bytespider|ccbot|amazonbot|applebot-extended|meta-externalagent|mistral|duckassist|youbot|opencode|cursor|copilot|codex|aider|cline|windsurf|bot\b|spider|crawler|headless/i
 
+// Link-preview fetchers read the Open Graph tags, so they always get the HTML, whatever they accept.
+const previews =
+  /twitterbot|facebookexternalhit|facebookcatalog|slackbot|slack-imgproxy|discordbot|linkedinbot|telegrambot|whatsapp|skypeuripreview|iframely|embedly|redditbot|mastodon|bluesky|cardyb|pinterestbot|vkshare/i
+
 /** Quality of the first Accept entry matching `type` (exact, then `type/*`, then `*\/*`). */
 function quality(accept: string, type: string) {
   let best = -1
@@ -33,6 +37,7 @@ export function wantsMarkdown(request: Request) {
   if (format === "html") return false
   const accept = request.headers.get("Accept") ?? ""
   const ua = request.headers.get("User-Agent") ?? ""
+  if (previews.test(ua)) return false
   const html = quality(accept, "text/html")
   const md = Math.max(quality(accept, "text/markdown"), quality(accept, "text/x-markdown"))
   const plain = quality(accept, "text/plain")

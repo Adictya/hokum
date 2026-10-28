@@ -46,7 +46,7 @@ function sections(md: string) {
 }
 
 const readmeParts = sections(readme)
-const tagline = readme.split("\n\n")[1].trim()
+const description = "A notification daemon for Wayland. Themes, per-app rules and Do not disturb, all in one config file."
 const intro = readmeParts[""].split("\n\n").slice(2).join("\n\n").trim()
 const use = readmeParts["Use"]
 const installMd = readmeParts["Install"]
@@ -273,13 +273,24 @@ const html = `<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Hokum — notifications for Wayland</title>
-<meta name="description" content="${escape(tagline)}">
+<meta name="description" content="${escape(description)}">
 <meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#000000">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Hokum — notifications for Wayland">
-<meta property="og:description" content="${escape(tagline)}">
+<meta property="og:description" content="${escape(description)}">
 <meta property="og:url" content="${origin}/">
+<meta property="og:site_name" content="Hokum">
+<meta property="og:image" content="${origin}/assets/og.png">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Notifications for Wayland. A stack of Hokum notification cards: Gary requests $40 on Venmo, texts about the lake, and Amazon ships a shovel, a tarp and garden lime.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Hokum — notifications for Wayland">
+<meta name="twitter:description" content="${escape(description)}">
+<meta name="twitter:image" content="${origin}/assets/og.png">
+<meta name="twitter:image:alt" content="Notifications for Wayland. A stack of Hokum notification cards.">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="alternate" type="text/markdown" href="/?format=md" title="This page as markdown, for agents">
 <link rel="preload" href="/assets/valkyrie-regular.woff2" as="font" type="font/woff2" crossorigin>
