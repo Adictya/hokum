@@ -180,9 +180,13 @@ function embed(doc: Doc) {
   }).trim()
 }
 
+// The words under the hero, and the start of the markdown.
+const headline = "Notifications for Wayland."
+const subline = "A replacement for mako, dunst and swaync. Themes, per-app rules and Do not disturb, all in one config file."
+
 const markdown = `# Hokum
 
-${tagline}
+${headline} ${subline}
 
 ${intro}
 
@@ -324,7 +328,7 @@ const opencodeMark = `<svg viewBox="0 0 16 20" aria-hidden="true"><path d="M2 2h
 // says Ubuntu, Debian or Fedora), the tabs switch.
 const arch = installTabs.find((t) => t.id === "arch")!
 const installPanels = [
-  { id: "arch", label: "Arch", html: `<div class="command"><code>${escape(arch.code)}</code><button type="button" data-copy="${escape(arch.code)}">Copy</button></div><p class="cta-note">From the AUR. Then <code>${escape(serviceCode)}</code>, or let D-Bus start it on the first notification.</p>` },
+  { id: "arch", label: "Arch", html: `<div class="command"><code>${escape(arch.code)}</code><button type="button" data-copy="${escape(arch.code)}">Copy</button></div><p class="cta-note">From the AUR.</p>` },
   { id: "debian", label: "Debian / Ubuntu", html: `<a class="download" href="${release}/linux-x64-deb"><span>Download .deb</span><span aria-hidden="true">↓</span></a><p class="cta-note">x86_64 · <a href="${release}/linux-arm64-deb">ARM64</a>. Install with <code>sudo apt install ./hokum.deb</code>.</p>` },
   { id: "fedora", label: "Fedora / openSUSE", html: `<a class="download" href="${release}/linux-x64-rpm"><span>Download .rpm</span><span aria-hidden="true">↓</span></a><p class="cta-note">x86_64 · <a href="${release}/linux-arm64-rpm">ARM64</a>. Install with <code>sudo dnf install ./hokum.rpm</code>.</p>` },
   { id: "binary", label: "Other Linux", html: `<a class="download" href="${release}/linux-x64"><span>Download the binary</span><span aria-hidden="true">↓</span></a><p class="cta-note">x86_64 · <a href="${release}/linux-arm64">ARM64</a> · <a href="${repo}/releases" rel="noopener">GitHub Releases</a>. Needs a Wayland compositor with layer shell.</p>` },
@@ -392,8 +396,8 @@ ${products.map((p) => `      <a class="menu-item" href="${p.url}">${productIcon(
 
 <main>
 <section class="intro">
-  <h1>Notifications that look like they belong on a computer from this decade.</h1>
-  <p class="lede">A notification daemon for Wayland: niri, sway, Hyprland, river and every other compositor with layer shell. Eight themes, one config file, cards on springs.</p>
+  <h1>${escape(headline)}</h1>
+  <p class="lede">${escape(subline)}</p>
   <div class="cta" role="group" aria-label="Install">
 ${installPanels.map((t, i) => `    <input type="radio" name="platform" id="p-${t.id}"${i === 0 ? " checked" : ""}>`).join("\n")}
 ${installPanels.map((t) => `    <div class="panel" id="panel-${t.id}">${t.html}</div>`).join("\n")}
