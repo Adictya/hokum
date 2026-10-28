@@ -1,7 +1,7 @@
 // Juice: short moments that react to the story (hero.js calls `hokumFx.card(story, el)` for every
 // card that arrives). Everything is drawn in code: one canvas for particles, a few overlays, and
-// transforms. The page stays black and still between moments. With reduced motion there are no
-// shakes or particles, only the gentle washes.
+// transforms. Nothing darkens the page. It stays black and still between moments. With reduced motion there are no
+// shakes or particles, only the police lights, gently.
 ;(() => {
   const reduce = matchMedia("(prefers-reduced-motion: reduce)")
   const page = document.querySelector(".first")
@@ -17,8 +17,6 @@
   }
   const red = overlay("fx-red")
   const blue = overlay("fx-blue")
-  const dim = overlay("fx-dim")
-  const vignette = overlay("fx-vignette")
 
   const anim = (el, frames, opts) => el.animate(frames, { fill: "none", ...opts })
 
@@ -46,17 +44,6 @@
     }
     anim(red, frames(0), { duration: ms, easing: "ease-out" })
     anim(blue, frames(1), { duration: ms, easing: "ease-out" })
-  }
-
-  function funeral() {
-    anim(dim, [{ opacity: 0 }, { opacity: 0.62, offset: 0.25 }, { opacity: 0.62, offset: 0.7 }, { opacity: 0 }], { duration: 2200, easing: "ease-in-out" })
-  }
-
-  function stillness(el) {
-    const r = el.getBoundingClientRect()
-    vignette.style.setProperty("--x", `${r.left + r.width / 2}px`)
-    vignette.style.setProperty("--y", `${r.top + r.height / 2}px`)
-    anim(vignette, [{ opacity: 0 }, { opacity: 1, offset: 0.3 }, { opacity: 1, offset: 0.75 }, { opacity: 0 }], { duration: 6500, easing: "ease-in-out" })
   }
 
   // ---- particles ----
@@ -180,7 +167,7 @@
     // Every arrival: the stack takes a small punch (a firmer one for critical cards).
     if (!reduce.matches) anim(stack, [{ transform: "translateY(0)" }, { transform: `translateY(${s.urgency === 2 ? 5 : 2}px)` }, { transform: "none" }], { duration: 220, easing: "ease-out" })
 
-    if (s.final) return void stillness(el)
+    if (s.final) return
     if (s.title === "Payment failed") return void shake(stack, 5, 360)
     if (s.app === "Mission Control") {
       if (!reduce.matches) anim(page, [0, 1, 2, 3, 4, 3, 2, 1, 0].flatMap((k, i, a) => [{ transform: `translate(${(i % 2 ? 1 : -1) * k}px, ${(i % 2 ? -1 : 1) * k * 0.6}px)` }]), { duration: 2400, easing: "linear" })
@@ -197,7 +184,6 @@
     if (s.app === "Hinge" || /marry me/.test(body)) return void hearts(el, 16)
     if (s.app === "Calendar" && /wedding/i.test(title) && document.getElementById("desk").dataset.branch === "love") { hearts(el, 14); return void confetti(el, 80) }
     if (s.app === "Zola") return void hearts(el, 8)
-    if (/Remembering Dave|presumed dead|shark attack|active volcano/.test(title + " " + body)) return void funeral()
   }
 
   window.hokumFx = { card }

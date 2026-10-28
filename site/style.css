@@ -166,8 +166,6 @@ h1, h2, h3 { text-wrap: balance; font-weight: 400; }
 .fx-canvas { z-index: 30; opacity: 1; width: 100vw; height: 100vh; }
 .fx-red { z-index: 25; background: radial-gradient(70% 90% at 0% 30%, rgb(255 40 60 / 0.5), transparent 70%); }
 .fx-blue { z-index: 25; background: radial-gradient(70% 90% at 100% 30%, rgb(40 100 255 / 0.5), transparent 70%); }
-.fx-dim { z-index: 25; background: rgb(0 0 0 / 0.85); }
-.fx-vignette { z-index: 25; background: radial-gradient(circle 380px at var(--x, 75%) var(--y, 20%), transparent 40%, rgb(0 0 0 / 0.72)); }
 
 /* ---- Footer: opentunnel's, exactly. The Anomaly copyright, as on the opencode console: the
    signature sits faintly behind the line, both centred. ---- */

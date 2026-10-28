@@ -188,7 +188,6 @@
   function leave(c, delay = 0, byHand = false) {
     if (c.leaving) return
     if (delay) return void setTimeout(() => leave(c), delay)
-    if (byHand) sound.play("whoosh")
     c.leaving = true
     // A short glide out while it fades, as Hokum's cards leave. (Gliding the card's full width
     // used to carry it past the column, where it showed beside the stack as a ghost.)
@@ -264,7 +263,6 @@
       c.dy = 0
       if (Math.abs(c.x) > geo.w * 0.33 || (Math.abs(vx) > 600 && Math.sign(vx) === Math.sign(c.x || vx))) {
         c.leaving = c.fling = true
-        sound.play("whoosh")
         c.vx = Math.sign(c.x || vx) * Math.max(Math.abs(vx), 1400)
         c.vy = vy * 0.5
         c.el.style.pointerEvents = "none"
@@ -293,16 +291,15 @@
     c[p] += c[v] * dt
   }
 
-  // Which sound a card makes.
+  // Which sound a card makes: only a few standout moments do. Money that bursts coins
+  // cha-chings, the launch rumbles, the wedding chimes; routine cards are silent.
   function kind(s) {
     if (s.title === "Payment failed") return "error"
-    if (s.urgency === 2) return s.app === "Mission Control" ? "rumble" : "alert"
-    // The choice already made its sound when it was pressed; its receipt just chimes.
-    if (/^You declined Gary/.test(s.title)) return "chime"
-    if (/wedding/i.test(s.title) && s.app === "Calendar") return "wedding"
-    if (s.app === "Venmo" || (s.app === "Bank" && /\$/.test(s.body || ""))) return "money"
-    if (s.app === "Messages" || s.app === "WhatsApp") return "pop"
-    return "chime"
+    if (s.app === "Mission Control") return "rumble"
+    if (s.app === "Calendar" && /wedding/i.test(s.title) && body.dataset.branch === "love") return "wedding"
+    if (/\$48,000,000/.test(s.body || "")) return "money"
+    if (s.app === "Venmo" && /sent you/.test(s.title)) return "money"
+    return null
   }
 
   // The opening choice: Gary's request waits for Pay or Decline. Pressing one is the click that
@@ -331,7 +328,8 @@
     if (s.scene) body.dataset.scene = s.scene
     // Cards fired to catch up (?t=, or a tab coming back) arrive without sound or effects.
     const live = t - s.at < 1
-    if (live) sound.play(s.final ? "thud" : kind(s))
+    const k = kind(s)
+    if (live && k) sound.play(k)
     if (s.final) {
       body.classList.add("end")
       // Replay shows once Gary's last word has sat there for a beat.

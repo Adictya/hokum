@@ -21,8 +21,8 @@ agents get.
 | `docs/themes.md` | The theme guide (markdown) |
 | `themes/*.kdl` | The built-in theme sources (markdown) |
 | `story.js` | The story as data: `STORY_TRUNK` (everyone sees it), then `STORY_BRANCHES` (four endings) |
-| `sound.js` | The sounds, synthesized with Web Audio (no files); nothing plays before the visitor's first click, "sound on/off" is remembered |
-| `fx.js` | Moments: police lights, coins, confetti, hearts, the liftoff, funeral dims, the stillness before Gary's last text (no shakes or particles with reduced motion) |
+| `sound.js` | A few sounds, synthesized with Web Audio (no files): the Decline / payment-failed answer, cha-chings on the big money, the launch, the wedding. Nothing plays before the visitor's first click; "sound on/off" is remembered |
+| `fx.js` | Moments: police lights, coins, confetti, hearts, the liftoff, card punches (no shakes or particles with reduced motion; nothing ever darkens the page) |
 | `hero.js` | The cards: Capsule's look and spring, stacking (older cards leave when the column is full), drag, fling, dismiss, the clock, and Replay once the story ends |
 
 The story waits on Gary's $40 Venmo request until the visitor presses Pay or Decline (or 7 s pass: declined). Either way he declines: Pay fails for insufficient funds and the story goes on (`?branch=pay` presses Pay). That click is also what lets the page make sound. Each visit plays the trunk and one random branch; Replay picks one not seen yet. `?branch=1..4`

@@ -63,24 +63,14 @@
   }
 
   const SOUNDS = {
-    // A soft two-note chime, Hokum's default.
-    chime: (t, v) => { tone(t, 880, { dur: 0.45, gain: 0.16 * v }); tone(t + 0.07, 1320, { dur: 0.5, gain: 0.1 * v }) },
-    // A message: one round pop.
-    pop: (t, v) => tone(t, 620, { dur: 0.16, gain: 0.2 * v, glide: 1.5 }),
-    // Critical: a firmer, repeated two-tone, still not harsh.
-    alert: (t, v) => { for (let i = 0; i < 2; i++) { tone(t + i * 0.22, 988, { dur: 0.16, gain: 0.16 * v, type: "triangle" }); tone(t + i * 0.22 + 0.09, 740, { dur: 0.16, gain: 0.14 * v, type: "triangle" }) } },
     // Money: a little cha-ching.
     money: (t, v) => { noise(t, { dur: 0.08, gain: 0.05 * v, from: 5000, to: 3000, q: 3 }); tone(t + 0.06, 1568, { dur: 0.3, gain: 0.12 * v, type: "triangle" }); tone(t + 0.14, 2093, { dur: 0.45, gain: 0.1 * v, type: "triangle" }) },
     // Payment failed: a low double buzz.
     error: (t, v) => { tone(t, 196, { dur: 0.14, gain: 0.14 * v, type: "square" }); tone(t + 0.17, 196, { dur: 0.22, gain: 0.12 * v, type: "square" }) },
     // Declined: a short falling pair.
     declined: (t, v) => { tone(t, 523, { dur: 0.18, gain: 0.16 * v, type: "triangle" }); tone(t + 0.11, 392, { dur: 0.3, gain: 0.14 * v, type: "triangle" }) },
-    // A card leaving: a quiet whoosh.
-    whoosh: (t, v) => noise(t, { dur: 0.28, gain: 0.035 * v, from: 1800, to: 500 }),
     // Liftoff: a low rumble.
     rumble: (t, v) => { noise(t, { dur: 2.2, gain: 0.12 * v, from: 180, to: 60, q: 0.5 }); tone(t, 55, { dur: 2, gain: 0.12 * v, type: "sawtooth", glide: 0.7 }) },
-    // Gary's last word: one soft heartbeat.
-    thud: (t, v) => { tone(t, 62, { dur: 0.22, gain: 0.3 * v, glide: 0.6 }); tone(t + 0.26, 58, { dur: 0.28, gain: 0.22 * v, glide: 0.6 }) },
     // The wedding: a little arpeggio.
     wedding: (t, v) => [523, 659, 784, 1047].forEach((f, i) => tone(t + i * 0.12, f, { dur: 0.7, gain: 0.11 * v })),
   }
@@ -90,7 +80,7 @@
     const now = ctx.currentTime
     // Don't stack: skip what lands on top of the last sound, and play near ones quieter.
     const since = now - lastAt
-    if (since < 0.09 && kind !== "alert") return
+    if (since < 0.09) return
     const v = since < 0.5 ? 0.55 : 1
     lastAt = now
     SOUNDS[kind](now + 0.01, v)
