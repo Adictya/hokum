@@ -320,15 +320,51 @@ const hokumProductIcon = `<svg viewBox="0 0 32 32" aria-hidden="true"><rect widt
 const anomalyMark = `<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="currentColor"><rect x="3" y="3" width="5" height="5" rx="1"/><rect x="10" y="3" width="5" height="5" rx="1"/><rect x="3" y="10" width="5" height="5" rx="1"/><rect x="10" y="10" width="5" height="5" rx="1"/><rect x="3" y="17" width="5" height="5" rx="1"/><rect x="10" y="17" width="5" height="5" rx="1"/><rect x="17.5" y="15.5" width="5" height="5" rx="1" transform="rotate(14 20 18)"/></g></svg>`
 const opencodeMark = `<svg viewBox="0 0 16 20" aria-hidden="true"><path d="M2 2h12v16H2z" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M5.2 10h5.6v4.8H5.2z" fill="currentColor" opacity=".5"/></svg>`
 
-// The install CTA: one panel per platform; site.js picks the visitor's (Arch unless the browser
-// says Ubuntu, Debian or Fedora), the tabs switch.
-const arch = installTabs.find((t) => t.id === "arch")!
-const installPanels = [
-  { id: "arch", label: "Arch", html: `<div class="command"><code>${escape(arch.code)}</code><button type="button" data-copy="${escape(arch.code)}">Copy</button></div><p class="cta-note">From the AUR. Then <code>${escape(serviceCode)}</code>, or let D-Bus start it on the first notification.</p>` },
-  { id: "debian", label: "Debian / Ubuntu", html: `<a class="download" href="${release}/linux-x64-deb"><span>Download .deb</span><span aria-hidden="true">↓</span></a><p class="cta-note">x86_64 · <a href="${release}/linux-arm64-deb">ARM64</a>. Install with <code>sudo apt install ./hokum.deb</code>.</p>` },
-  { id: "fedora", label: "Fedora / openSUSE", html: `<a class="download" href="${release}/linux-x64-rpm"><span>Download .rpm</span><span aria-hidden="true">↓</span></a><p class="cta-note">x86_64 · <a href="${release}/linux-arm64-rpm">ARM64</a>. Install with <code>sudo dnf install ./hokum.rpm</code>.</p>` },
-  { id: "binary", label: "Other Linux", html: `<a class="download" href="${release}/linux-x64"><span>Download the binary</span><span aria-hidden="true">↓</span></a><p class="cta-note">x86_64 · <a href="${release}/linux-arm64">ARM64</a> · <a href="${repo}/releases" rel="noopener">GitHub Releases</a>. Needs a Wayland compositor with layer shell.</p>` },
+// The install line: one command for the visitor's platform and CPU. The pickers are radios, so it
+// works without JavaScript (style.css shows the checked one); site.js guesses the platform (Arch
+// unless the browser says Ubuntu, Debian or Fedora) and the CPU, closes the menu and copies.
+// Starting it with the session is left to the full install docs further down.
+// Commands come from README; ARM swaps `linux-x64` for `linux-arm64`.
+const tab = (id: string) => installTabs.find((t) => t.id === id)?.code.split("\n") ?? []
+const cpus = [
+  { id: "x64", label: "x86_64" },
+  { id: "arm64", label: "arm64" },
 ]
+const platforms = [
+  { id: "arch", label: "Arch Linux", hint: "AUR", lines: () => tab("arch"),
+    alt: () => `<a href="https://aur.archlinux.org/packages/hokum-bin" rel="noopener">AUR package <span aria-hidden="true">↗</span></a>` },
+  { id: "debian", label: "Debian / Ubuntu", hint: ".deb", lines: () => tab("debian"),
+    alt: (cpu: string) => `<a href="${release}/linux-${cpu}-deb">Download .deb <span aria-hidden="true">↓</span></a>` },
+  { id: "fedora", label: "Fedora / openSUSE", hint: ".rpm", lines: () => tab("fedora"),
+    alt: (cpu: string) => `<a href="${release}/linux-${cpu}-rpm">Download .rpm <span aria-hidden="true">↓</span></a>` },
+  { id: "binary", label: "Other Linux", hint: "binary",
+    lines: () => [`curl -fLo ~/.local/bin/hokum ${release}/linux-x64`, "chmod +x ~/.local/bin/hokum"],
+    alt: (cpu: string) => `<a href="${release}/linux-${cpu}">Executable <span aria-hidden="true">↓</span></a><a href="${repo}/tree/dev/packaging" rel="noopener">Unit files <span aria-hidden="true">↗</span></a><a href="${repo}/releases" rel="noopener">Releases <span aria-hidden="true">↗</span></a>` },
+]
+const copyIcon = `<svg class="i-copy" viewBox="0 0 16 16" aria-hidden="true"><rect x="5.25" y="5.25" width="8" height="8" rx="1.75"/><path d="M10.75 3.25v-.5a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h.5"/></svg><svg class="i-done" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.25 8.5l3 3 6.5-7"/></svg>`
+const copyButton = (text: string, label: string) =>
+  `<button type="button" class="copy-line" data-copy="${escape(text)}" aria-label="${escape(label)}" title="Copy">${copyIcon}</button>`
+// A long download line breaks before its URL with a shell continuation, so selecting the text
+// still pastes as a working command; the URL can wrap at its slashes on a phone.
+const commandLine = (line: string) => {
+  const m = line.match(/^(.+?) (https:\/\/\S+)$/)
+  const body = m
+    ? `${escape(m[1])}<span class="cont"> \\\n</span><span class="url">${m[2].split(/(?<=[^/]\/)(?!\/)/).map((s) => `<span>${escape(s)}</span>`).join("<wbr>")}</span>`
+    : escape(line)
+  return `<span class="ln"><span class="ps" aria-hidden="true">$ </span>${body}</span>`
+}
+const installCommands = platforms
+  .flatMap((p) =>
+    (p.id === "arch" ? [null] : cpus.map((c) => c.id)).map((cpu) => {
+      const lines = p.lines().map((l) => (cpu ? l.replace("linux-x64", `linux-${cpu}`) : l))
+      const label = `${p.label}${cpu ? ` (${cpus.find((c) => c.id === cpu)!.label})` : ""}`
+      return `      <div class="cmd" data-platform="${p.id}"${cpu ? ` data-cpu="${cpu}"` : ""}><code>${lines.map(commandLine).join("\n")}</code>${copyButton(lines.join(" && "), `Copy the install command for ${label}`)}</div>`
+    }),
+  )
+  .join("\n")
+const installAlts = platforms
+  .flatMap((p) => (p.id === "arch" ? [null] : cpus.map((c) => c.id)).map((cpu) => `<span class="alt" data-platform="${p.id}"${cpu ? ` data-cpu="${cpu}"` : ""}>${p.alt(cpu ?? "x64")}</span>`))
+  .join("")
 
 const clipTiles = [
   { id: "themes", title: "Eight themes built in", line: "One line of config switches the look. Or have your agent write a new one." },
@@ -392,12 +428,26 @@ ${products.map((p) => `      <a class="menu-item" href="${p.url}">${productIcon(
 
 <main>
 <section class="intro">
-  <h1>Notifications that look like they belong on a computer from this decade.</h1>
-  <p class="lede">A notification daemon for Wayland: niri, sway, Hyprland, river and every other compositor with layer shell. Eight themes, one config file, cards on springs.</p>
-  <div class="cta" role="group" aria-label="Install">
-${installPanels.map((t, i) => `    <input type="radio" name="platform" id="p-${t.id}"${i === 0 ? " checked" : ""}>`).join("\n")}
-${installPanels.map((t) => `    <div class="panel" id="panel-${t.id}">${t.html}</div>`).join("\n")}
-    <div class="platforms">${installPanels.map((t) => `<label for="p-${t.id}">${escape(t.label)}</label>`).join("")}</div>
+  <h1>Notifications for Wayland.</h1>
+  <p class="lede">A replacement for mako, dunst and swaync. Themes, per-app rules and Do not disturb, all in one config file.</p>
+  <div class="install" role="group" aria-label="Install">
+    <div class="install-meta">
+      <details class="pick">
+        <summary><span class="pick-lead">Install on</span><span class="pick-name">${platforms.map((p) => `<span data-platform="${p.id}">${escape(p.label)}</span>`).join("")}</span><span class="pick-chev" aria-hidden="true"></span></summary>
+        <div class="pick-menu" role="radiogroup" aria-label="Platform">
+${platforms.map((p, i) => `          <label><input type="radio" name="platform" value="${p.id}" id="p-${p.id}"${i === 0 ? " checked" : ""}><span>${escape(p.label)}</span><i>${escape(p.hint)}</i></label>`).join("\n")}
+        </div>
+      </details>
+      <div class="cpu" role="radiogroup" aria-label="CPU">
+${cpus.map((c, i) => `        <label><input type="radio" name="cpu" value="${c.id}" id="cpu-${c.id}"${i === 0 ? " checked" : ""}><span>${c.label}</span></label>`).join("\n")}
+      </div>
+      <span class="via" data-platform="arch">from the AUR</span>
+    </div>
+    <div class="cmds">
+${installCommands}
+    </div>
+    <p class="alts">${installAlts}</p>
+    <p class="copy-status" role="status" aria-live="polite"></p>
   </div>
 </section>
 
