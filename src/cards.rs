@@ -14,7 +14,7 @@ use crate::style::{Appearance, Behaviour};
 use crate::theme::Theme;
 use crate::watch::Config;
 
-/// The gap around the stack, which leaves room for shadows.
+/// The gap between the stack and the screen's edges.
 pub const GUTTER: f32 = 18.0;
 /// The overlay's height: room for a full stack, and short enough for small screens.
 const HEIGHT: f32 = 820.0;
@@ -350,8 +350,11 @@ fn run(argv: &[String], token: Option<&str>) {
     }
 }
 
+/// The stack sits `GUTTER` from the screen's edge; the side away from it gets room for the
+/// theme's shadow, so the shadow isn't cut off at the surface's edge. That room is
+/// click-through: only cards take input.
 fn size(theme: &Theme, dark: bool) -> (f32, f32) {
-    (theme.base(dark).width + GUTTER * 2.0, HEIGHT)
+    (theme.base(dark).width + GUTTER + crate::card::shadow_reach(theme).max(GUTTER), HEIGHT)
 }
 
 /// The corner of the screen for `s`.
@@ -549,6 +552,23 @@ mod tests {
         ui.settings = Behaviour::default();
         ui.theme = crate::theme::resolve("").unwrap();
         (ui, rx)
+    }
+
+    #[test]
+    fn surface_leaves_room_for_every_shadow() {
+        for id in ["soft", "crisp", "capsule", "ribbon", "terminal", "bubble", "signal", "pill"] {
+            let theme = crate::theme::resolve(id).unwrap();
+            let reach = crate::card::shadow_reach(&theme);
+            if theme.base(true).shadow == crate::theme::Lift::Deep {
+                assert!(reach >= 54.0, "{id}: deep's blur 36 fades out 54pt away, got {reach}");
+            }
+            for dark in [false, true] {
+                let width = theme.base(dark).width;
+                let (w, _) = size(&theme, dark);
+                // The card stays GUTTER from the screen's edge; the inner side holds the shadow.
+                assert!(w - width - GUTTER >= reach.max(GUTTER), "{id}: {w} for a {width} card");
+            }
+        }
     }
 
     fn note(id: u32, default: bool) -> Note {

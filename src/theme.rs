@@ -606,6 +606,13 @@ impl Theme {
     }
 
     /// The look for `n`: the theme, then every rule that matches, in order.
+    /// Every shadow a card can get: the theme's own and any a rule sets.
+    pub fn lifts(&self, dark: bool) -> Vec<Lift> {
+        let mut v = vec![self.base(dark).shadow];
+        v.extend(self.rules.iter().filter_map(|r| r.tokens.shadow));
+        v
+    }
+
     pub fn look(&self, n: &Note, dark: bool) -> Look {
         let mut tokens = self.base(dark);
         let mut template = n.template.clone().unwrap_or_else(|| "card".into());
