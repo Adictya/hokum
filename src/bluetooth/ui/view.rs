@@ -203,7 +203,7 @@ fn action_row(k: &Kit, key: &str, glyph: &'static rune::Icon, label: &str, color
         .children(trailing.map(|t| icon(t, 12.0).key("trail").color(c.icon_faint)))
 }
 
-/// Level two for a known device: its name, trust, Hokum Sound, forget.
+/// Level two for a known device: its name, trust, Sound, forget.
 fn device_panel(s: &Ui, k: &Kit, d: &Device) -> Vec<El> {
     let c = &k.c;
     let name = TextInput::new(&s.rename)

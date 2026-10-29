@@ -589,12 +589,12 @@ pub fn channel() -> (Audio, Driver) {
     (Audio { shared: shared.clone(), commands: tx }, Driver { shared, commands: rx })
 }
 
-/// Which backend `sound` runs.
+/// Which backend the Sound module runs.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Source {
     /// PipeWire (`crate::sound::pipewire`).
     PipeWire,
-    /// Fake devices and apps with animated levels (`crate::sound::mock`): `--mock` or
+    /// Fake devices and apps with animated levels (`crate::sound::mock`):
     /// `HOKUM_SOUND_BACKEND=mock`, and every headless scene.
     Mock,
 }

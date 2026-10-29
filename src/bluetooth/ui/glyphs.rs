@@ -1,5 +1,5 @@
 //! The window's own line icons, on a 16-point grid in the stroke style of Hokum's settings
-//! (shared with Hokum Sound).
+//! (shared with the Sound section).
 
 use rune::Icon;
 

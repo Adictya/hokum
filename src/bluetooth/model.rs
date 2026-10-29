@@ -241,7 +241,7 @@ pub struct Device {
     /// Profiles and services it offers (`UUIDs`), with friendly names.
     pub services: Vec<Service>,
     /// Plays or records sound (A2DP, HFP/HSP, LE Audio): the UI hands codec and profile
-    /// choices to Hokum Sound (`sound`) rather than doing them here.
+    /// choices to the Sound section rather than doing them here.
     pub audio: bool,
     /// A slow call this app started and is still waiting on.
     pub pending: Option<Pending>,
@@ -725,12 +725,12 @@ pub fn channel() -> (Bluetooth, Driver) {
     (Bluetooth { shared: shared.clone(), commands: tx }, Driver { shared, commands: rx })
 }
 
-/// Which backend `blue` runs.
+/// Which backend the Bluetooth module runs.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Source {
     /// BlueZ on the system bus (`crate::bluetooth::bluez`).
     Bluez,
-    /// Fake adapter and devices (`crate::bluetooth::mock`): `--mock` or `HOKUM_BLUETOOTH_BACKEND=mock`,
+    /// Fake adapter and devices (`crate::bluetooth::mock`): `HOKUM_BLUETOOTH_BACKEND=mock`,
     /// and every headless scene.
     Mock,
 }

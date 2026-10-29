@@ -1,7 +1,7 @@
 //! A fake audio system for UI work and headless scenes: a laptop's speakers and microphone,
 //! HDMI, USB headphones and a USB microphone, a Bluetooth headset with codecs, and a few apps.
 //! It applies every [`Command`] the way PipeWire would and animates levels for whatever is
-//! metered. `sound --mock` (or `HOKUM_SOUND_BACKEND=mock`) runs the window on it.
+//! metered. `HOKUM_SOUND_BACKEND=mock` runs Hokum on it.
 
 use std::collections::HashSet;
 use std::time::{Duration, Instant};
