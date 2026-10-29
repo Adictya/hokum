@@ -1,7 +1,8 @@
 //! `org.freedesktop.Notifications` on the session bus, plus Hokum's own objects on the same
 //! name: `app.hokum.Settings.Activate` (a second `hokum` shows this process's window) and
 //! `app.hokum.Daemon` (`Reload` re-reads config.kdl; `Dismiss`, `Invoke`, `SetDoNotDisturb`
-//! and the `DoNotDisturb` property back `hokum dismiss|invoke|dnd`). Calls arrive on zbus's
+//! and the `DoNotDisturb` property back `hokum dismiss|invoke|dnd`; `History` and the
+//! `HistoryCount` property back `hokum history`). Calls arrive on zbus's
 //! thread and reach the UI through Rune handles; closings, actions and Do not disturb changes
 //! come back on a channel and go out as signals from a thread of their own.
 
@@ -30,6 +31,7 @@ const DAEMON_IFACE: &str = "app.hokum.Daemon";
 
 struct Server {
     ui: OverlayHandle<Ui>,
+    history: OverlayHandle<crate::history::Ui>,
     next: AtomicU32,
 }
 
@@ -214,6 +216,7 @@ impl Server {
 
     fn close_notification(&self, id: u32) {
         self.ui.update(move |s, _| s.close(id, Reason::Closed));
+        self.history.update(move |h, _| h.forget(id));
     }
 
     fn get_server_information(&self) -> (&'static str, &'static str, &'static str, &'static str) {
@@ -223,8 +226,10 @@ impl Server {
 
 struct Control {
     ui: OverlayHandle<Ui>,
+    history: OverlayHandle<crate::history::Ui>,
     settings: AppHandle<crate::settings::Ui>,
     dnd: Arc<AtomicBool>,
+    count: Arc<AtomicU32>,
 }
 
 impl Control {
@@ -286,6 +291,33 @@ impl Control {
     fn do_not_disturb(&self) -> bool {
         self.dnd.load(Ordering::Relaxed)
     }
+
+    /// The history panel: `toggle`, `open`, `close` or `clear` it (empty asks only). Returns
+    /// how many notifications it holds afterwards.
+    fn history(&self, action: String) -> zbus::fdo::Result<u32> {
+        let (tx, rx) = std::sync::mpsc::channel();
+        let unknown = !matches!(action.as_str(), "" | "toggle" | "open" | "close" | "clear");
+        if unknown {
+            return Err(zbus::fdo::Error::InvalidArgs(format!("unknown history action `{action}`")));
+        }
+        self.history.update(move |h, _| {
+            match action.as_str() {
+                "toggle" => h.toggle(),
+                "open" => h.open(),
+                "close" => h.close(),
+                "clear" => h.clear(),
+                _ => {}
+            }
+            let _ = tx.send(h.count());
+        });
+        rx.recv_timeout(Duration::from_secs(3)).map_err(|_| zbus::fdo::Error::Failed("Hokum's history didn't answer".into()))
+    }
+
+    /// How many notifications the history holds. Changes are announced with `PropertiesChanged`.
+    #[zbus(property)]
+    fn history_count(&self) -> u32 {
+        self.count.load(Ordering::Relaxed)
+    }
 }
 
 struct Window {
@@ -307,7 +339,7 @@ impl Window {
 
 /// Follows the desktop's colour scheme (`org.freedesktop.appearance color-scheme`: 1 dark,
 /// 2 light, 0 no preference, which reads as dark like the rest of Hokum).
-fn follow_color_scheme(conn: &Connection, ui: OverlayHandle<Ui>) {
+fn follow_color_scheme(conn: &Connection, ui: OverlayHandle<Ui>, history: OverlayHandle<crate::history::Ui>) {
     let Ok(proxy) = zbus::blocking::Proxy::new(
         conn,
         "org.freedesktop.portal.Desktop",
@@ -324,7 +356,10 @@ fn follow_color_scheme(conn: &Connection, ui: OverlayHandle<Ui>) {
             _ => None,
         }
     }
-    let apply = |ui: &OverlayHandle<Ui>, scheme: u32| ui.update(move |s, _| s.system_dark = scheme != 2);
+    let apply = move |ui: &OverlayHandle<Ui>, scheme: u32| {
+        ui.update(move |s, _| s.system_dark = scheme != 2);
+        history.update(move |h, _| h.system_dark = scheme != 2);
+    };
     if let Ok(v) = proxy.call::<_, _, OwnedValue>("ReadOne", &("org.freedesktop.appearance", "color-scheme"))
         && let Some(sc) = scheme(&v)
     {
@@ -365,20 +400,22 @@ pub fn claim(conn: &Connection, replace: bool) -> Daemon {
 /// (to a newer Hokum) quits this one.
 pub fn serve(
     overlay: OverlayHandle<Ui>,
+    history: OverlayHandle<crate::history::Ui>,
     settings: AppHandle<crate::settings::Ui>,
     out: Receiver<Out>,
     replace: bool,
     dnd: bool,
 ) -> zbus::Result<(Connection, Daemon)> {
     let dnd = Arc::new(AtomicBool::new(dnd));
-    let control = Control { ui: overlay.clone(), settings: settings.clone(), dnd: dnd.clone() };
+    let count = Arc::new(AtomicU32::new(0));
+    let control = Control { ui: overlay.clone(), history: history.clone(), settings: settings.clone(), dnd: dnd.clone(), count: count.clone() };
     let conn = zbus::blocking::connection::Builder::session()?
-        .serve_at(PATH, Server { ui: overlay.clone(), next: AtomicU32::new(1) })?
+        .serve_at(PATH, Server { ui: overlay.clone(), history: history.clone(), next: AtomicU32::new(1) })?
         .serve_at(DAEMON_PATH, control)?
         .serve_at(SETTINGS_PATH, Window { settings: settings.clone() })?
         .build()?;
     let daemon = claim(&conn, replace);
-    follow_color_scheme(&conn, overlay);
+    follow_color_scheme(&conn, overlay, history);
     let lost = conn.clone();
     std::thread::spawn(move || {
         let Ok(proxy) = zbus::blocking::fdo::DBusProxy::new(&lost) else { return };
@@ -402,6 +439,14 @@ pub fn serve(
                 Out::Dnd(on) => {
                     dnd.store(on, Ordering::Relaxed);
                     let changed = HashMap::from([("DoNotDisturb", zbus::zvariant::Value::from(on))]);
+                    let body = (DAEMON_IFACE, changed, Vec::<&str>::new());
+                    emit.emit_signal(None::<&str>, DAEMON_PATH, "org.freedesktop.DBus.Properties", "PropertiesChanged", &body)
+                }
+                Out::History(n) => {
+                    if count.swap(n, Ordering::Relaxed) == n {
+                        continue;
+                    }
+                    let changed = HashMap::from([("HistoryCount", zbus::zvariant::Value::from(n))]);
                     let body = (DAEMON_IFACE, changed, Vec::<&str>::new());
                     emit.emit_signal(None::<&str>, DAEMON_PATH, "org.freedesktop.DBus.Properties", "PropertiesChanged", &body)
                 }
@@ -443,6 +488,7 @@ pub fn control(args: &[String]) -> i32 {
             Ok(_) => 0,
             Err(e) => fail(&e),
         },
+        Some("history") => history(&conn, args),
         Some("invoke") => {
             let token = std::env::var("XDG_ACTIVATION_TOKEN").unwrap_or_default();
             match call("Invoke", &(token,)).and_then(|m| m.body().deserialize::<bool>()) {
@@ -498,6 +544,57 @@ pub fn control(args: &[String]) -> i32 {
             0
         }
     }
+}
+
+/// `hokum history [toggle|open|close|clear] [--json] [--watch]`: drives the panel and prints how
+/// many notifications it holds; with `--json`, `{"count":3,"dnd":false}`, which `--watch`
+/// reprints whenever either changes (for bars).
+fn history(conn: &Connection, args: &[String]) -> i32 {
+    let action = args.iter().skip(1).find(|a| !a.starts_with('-')).cloned().unwrap_or_default();
+    let flag = |f: &str| args.iter().any(|a| a == f);
+    let json = flag("--json");
+    let get = |name: &str| -> zbus::Result<OwnedValue> {
+        let reply = conn.call_method(Some(NAME), DAEMON_PATH, Some("org.freedesktop.DBus.Properties"), "Get", &(DAEMON_IFACE, name))?;
+        Ok(reply.body().deserialize::<OwnedValue>()?)
+    };
+    let count = match conn.call_method(Some(NAME), DAEMON_PATH, Some(DAEMON_IFACE), "History", &(action,)).and_then(|m| m.body().deserialize::<u32>()) {
+        Ok(n) => n,
+        Err(e) => {
+            eprintln!("hokum: {e}");
+            return 1;
+        }
+    };
+    let mut dnd = get("DoNotDisturb").ok().and_then(|v| bool::try_from(v).ok()).unwrap_or(false);
+    let mut count = count;
+    let print = |count: u32, dnd: bool| {
+        if json { println!("{{\"count\":{count},\"dnd\":{dnd}}}") } else { println!("{count}") }
+    };
+    print(count, dnd);
+    if !flag("--watch") {
+        return 0;
+    }
+    let Ok(proxy) = zbus::blocking::fdo::PropertiesProxy::builder(conn).destination(NAME).and_then(|b| b.path(DAEMON_PATH)).and_then(|b| b.build()) else {
+        eprintln!("hokum: couldn't watch Hokum");
+        return 1;
+    };
+    let Ok(changes) = proxy.receive_properties_changed() else {
+        eprintln!("hokum: couldn't watch Hokum");
+        return 1;
+    };
+    for change in changes {
+        let Ok(args) = change.args() else { continue };
+        if args.interface_name != DAEMON_IFACE {
+            continue;
+        }
+        if let Some(v) = args.changed_properties.get("DoNotDisturb").and_then(|v| bool::try_from(v).ok()) {
+            dnd = v;
+        }
+        if let Some(v) = args.changed_properties.get("HistoryCount").and_then(|v| u32::try_from(v).ok()) {
+            count = v;
+        }
+        print(count, dnd);
+    }
+    0
 }
 
 /// A method body of any type, so one closure can call every `app.hokum.Daemon` method.

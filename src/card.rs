@@ -20,6 +20,7 @@ pub enum Timeout {
     After(Duration),
 }
 
+#[derive(Clone)]
 pub struct Note {
     pub id: u32,
     /// The card this note draws into. A note that replaces another keeps its card, so the

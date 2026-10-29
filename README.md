@@ -73,6 +73,8 @@ hokum check [path]        # report problems in config.kdl, or in a theme or conf
 hokum dismiss [--all]     # close the newest card, or every card
 hokum invoke              # do what clicking the newest card does
 hokum dnd [on|off|toggle] # print Do not disturb, or set it (--json, --watch for bars)
+hokum history [toggle]    # the panel of this session's notifications down the right edge
+                          # (open, close, clear; --json, --watch for bars)
 hokum update [--install]  # check for a new build now (and install it)
 hokum --version
 ```

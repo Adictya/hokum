@@ -9,6 +9,7 @@
 //! hokum dismiss [--all]     # close the newest card (or all of them)
 //! hokum invoke              # click the newest card
 //! hokum dnd [on|off|toggle] # Do not disturb: print it, or set it and print the result
+//! hokum history [toggle]    # the history panel down the right edge (open, close, clear)
 //! hokum update [--install]  # check for a new build now (and install it)
 //! hokum --version
 //! hokum --snap /tmp/settings.png --scene hokum            # headless settings, no D-Bus
@@ -17,6 +18,7 @@
 //! hokum service --snap /tmp/update.png --scene update    # the update card
 //! hokum --snap /tmp/sound.png --scene sound              # a module's section, on its mock
 //! hokum --snap /tmp/panel.png --scene panel --size 364x420  # the tray panel
+//! hokum history --snap /tmp/history.png --scene history    # the history panel
 //! ```
 //!
 //! One process, like Hex: the service owns `org.freedesktop.Notifications`, draws the cards on
@@ -31,6 +33,7 @@ mod bus;
 mod card;
 mod cards;
 mod config;
+mod history;
 mod icons;
 mod integrations;
 mod modules;
@@ -48,7 +51,7 @@ mod welcome;
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
-const HELP: &str = "usage: hokum [sound | bt | service [--replace] | check [path] | dismiss | invoke | dnd | update] [--version] [--help]
+const HELP: &str = "usage: hokum [sound | bt | service [--replace] | check [path] | dismiss | invoke | dnd | history | update] [--version] [--help]
   hokum                  show the window (starts Hokum if needed)
   hokum sound            show the window on Sound
   hokum bt, bluetooth    show the window on Bluetooth
@@ -63,6 +66,11 @@ const HELP: &str = "usage: hokum [sound | bt | service [--replace] | check [path
                          saved to config.kdl like the settings window's switch
     --json               print {\"dnd\":true} instead
     --watch              keep printing it whenever it changes (for bars)
+  hokum history [toggle|open|close|clear]
+                         show or hide the panel of past notifications, or clear it, and print
+                         how many it holds
+    --json               print {\"count\":3,\"dnd\":false} instead
+    --watch              keep printing it whenever either changes (for bars)
   hokum update           check for a new build on this build's channel now
     --install            and install it, as clicking the update card does
   dismiss and invoke exit 1 when there are no notifications
@@ -97,6 +105,13 @@ fn main() {
     let headless = argv.iter().any(|a| {
         matches!(a.as_str(), "--snap" | "--tree" | "--trace" | "--frames" | "--strip" | "--list-scenes" | "--first-pixels")
     });
+    if headless && argv.first().is_some_and(|a| a == "history") {
+        history::headless();
+        return;
+    }
+    if argv.first().is_some_and(|a| a == "history") {
+        std::process::exit(bus::control(&argv));
+    }
     let service = argv.first().is_some_and(|a| a == "service");
     let section = argv.first().and_then(|a| settings::Section::from_word(a));
     match (headless, service) {
@@ -149,6 +164,7 @@ fn run(open: bool, replace: bool, section: Option<settings::Section>) {
     if !open {
         app = app.windowless();
     }
+    let history = app.overlay(history::overlay(), history::Ui::new(&config, out_tx.clone()));
     let overlay = app.overlay(cards::overlay(&config), cards::Ui::new(config.clone(), out_tx, timer_tx));
     let window = app.handle();
     let panel = app.overlay(panel::overlay(), panel::state(window.clone()));
@@ -156,10 +172,19 @@ fn run(open: bool, replace: bool, section: Option<settings::Section>) {
     cards::timers(timer_rx, overlay.clone());
     watch::spawn(overlay.clone(), window.clone());
     {
-        let (own, window) = (overlay.clone(), window.clone());
+        let (own, window, kept) = (overlay.clone(), window.clone(), history.clone());
         overlay.update(move |c, _| {
             c.handle = Some(own);
             c.window = Some(window);
+            c.history = Some(kept);
+        });
+    }
+    {
+        let (own, window, cards) = (history.clone(), window.clone(), overlay.clone());
+        history.update(move |h, _| {
+            h.handle = Some(own);
+            h.window = Some(window);
+            h.cards = Some(cards);
         });
     }
     if welcome {
@@ -171,7 +196,7 @@ fn run(open: bool, replace: bool, section: Option<settings::Section>) {
     }
     update::spawn(overlay.clone());
     let dnd = config.loaded.behaviour.do_not_disturb;
-    let (bus, daemon) = match bus::serve(overlay.clone(), window.clone(), out_rx, replace, dnd) {
+    let (bus, daemon) = match bus::serve(overlay.clone(), history, window.clone(), out_rx, replace, dnd) {
         Ok(served) => served,
         Err(e) => {
             eprintln!("hokum: no session bus: {e}");

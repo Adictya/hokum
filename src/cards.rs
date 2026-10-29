@@ -36,6 +36,8 @@ pub enum Out {
     Action(u32, String, Option<String>),
     /// Do not disturb turned on or off.
     Dnd(bool),
+    /// How many notifications the history holds.
+    History(u32),
 }
 
 pub struct Ui {
@@ -55,6 +57,10 @@ pub struct Ui {
     pub handle: Option<OverlayHandle<Ui>>,
     /// The settings window, which Hokum's own cards open; None when headless.
     pub window: Option<AppHandle<crate::settings::Ui>>,
+    /// The history panel, which keeps every card that came in; None when headless.
+    pub history: Option<OverlayHandle<crate::history::Ui>>,
+    /// The history panel is open: cards wait behind it instead of showing.
+    covered: bool,
     shown: bool,
     hide_at: Option<Instant>,
 }
@@ -73,6 +79,8 @@ impl Ui {
             timer,
             handle: None,
             window: None,
+            history: None,
+            covered: false,
             shown: false,
             hide_at: None,
         };
@@ -100,6 +108,10 @@ impl Ui {
         });
         let behaviour = if config.loaded.ok() { config.loaded.behaviour } else { self.settings.clone() };
         self.apply(behaviour);
+        if let Some(h) = &self.history {
+            let (theme, settings) = (self.theme.clone(), self.settings.clone());
+            h.update(move |h, _| h.restyle(theme, settings));
+        }
     }
 
 
@@ -149,6 +161,14 @@ impl Ui {
         if let Some(t) = routing.timeout {
             n.timeout = t;
         }
+        if let Some(h) = &self.history
+            && !n.hud
+            && n.id != crate::welcome::ID
+            && n.id != crate::update::ID
+        {
+            let kept = n.clone();
+            h.update(move |h, _| h.record(kept));
+        }
         if let Some(cache) = &self.cache {
             n.decode(cache);
         }
@@ -187,8 +207,23 @@ impl Ui {
             self.notes.insert(0, n);
         }
         if !self.shown
+            && !self.covered
             && let Some(h) = &self.handle
         {
+            h.show();
+            self.shown = true;
+        }
+        self.reschedule();
+    }
+
+    /// The history panel opened or closed over the corner the cards use.
+    pub fn cover(&mut self, on: bool) {
+        self.covered = on;
+        let Some(h) = &self.handle else { return };
+        if on && self.shown {
+            h.hide();
+            self.shown = false;
+        } else if !on && !self.shown && !self.notes.is_empty() {
             h.show();
             self.shown = true;
         }
@@ -269,6 +304,16 @@ impl Ui {
         if !resident {
             self.dismiss(id);
         }
+    }
+
+    /// A button pressed in the history: the app hears it the same way, and the card goes too
+    /// if it's still up.
+    pub fn invoke_remembered(&mut self, id: u32, key: String, token: Option<String>, argv: Option<Vec<String>>) {
+        if let Some(argv) = &argv {
+            run(argv, token.as_deref());
+        }
+        let _ = self.out.send(Out::Action(id, key, token));
+        self.close(id, Reason::Dismissed);
     }
 
     fn expire(&mut self, now: Instant) {
