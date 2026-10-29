@@ -134,6 +134,40 @@ pub fn tint(app: &str) -> Color {
     oklch(0.64, 0.13, (h % 360) as f32)
 }
 
+/// The shadows a card casts for `lift`.
+pub fn shadows(lift: Lift, k: &Kit, accent: Color) -> Vec<Shadow> {
+    match lift {
+        Lift::Flat => Vec::new(),
+        Lift::Soft | Lift::Deep => {
+            let mut v = k.elevation.overlay.clone();
+            if lift == Lift::Deep {
+                let a = if k.dark { 0.45 } else { 0.16 };
+                v.push(Shadow { y: 14.0, blur: 36.0, color: Color::BLACK.alpha(a), ..Default::default() });
+            }
+            v
+        }
+        Lift::Glow => vec![
+            Shadow { blur: 28.0, color: accent.alpha(0.45), ..Default::default() },
+            Shadow { blur: 6.0, color: accent.alpha(0.35), ..Default::default() },
+        ],
+    }
+}
+
+/// How far the shadows `theme` can give a card reach past its sides, in either appearance: the
+/// Gaussian fades out by three standard deviations (1.5 × blur), plus sideways offset and spread.
+pub fn shadow_reach(theme: &Theme) -> f32 {
+    [false, true]
+        .into_iter()
+        .flat_map(|dark| {
+            let k = rune_theme_opencode::kit(dark);
+            theme.lifts(dark).into_iter().flat_map(move |l| shadows(l, k, Color::BLACK))
+        })
+        .filter(|sh| !sh.inset)
+        .map(|sh| sh.x.abs() + sh.spread.max(0.0) + sh.blur * 1.5)
+        .fold(0.0, f32::max)
+        .ceil()
+}
+
 /// The card for `n` in `theme`. `from_right` picks the edge it slides in from.
 pub fn card<S: Cards>(n: &Note, theme: &Theme, k: &Kit, from_right: bool) -> El {
     let look = theme.look(n, k.dark);
@@ -167,22 +201,8 @@ pub fn card<S: Cards>(n: &Note, theme: &Theme, k: &Kit, from_right: bool) -> El 
     if let Some((w, c)) = &t.border {
         root = root.border(*w, cx.paint(c));
     }
-    match t.shadow {
-        Lift::Flat => {}
-        Lift::Soft | Lift::Deep => {
-            for sh in &k.elevation.overlay {
-                root = root.box_shadow(*sh);
-            }
-            if t.shadow == Lift::Deep {
-                let a = if k.dark { 0.45 } else { 0.16 };
-                root = root.box_shadow(Shadow { y: 14.0, blur: 36.0, color: Color::BLACK.alpha(a), ..Default::default() });
-            }
-        }
-        Lift::Glow => {
-            root = root
-                .box_shadow(Shadow { blur: 28.0, color: accent.alpha(0.45), ..Default::default() })
-                .box_shadow(Shadow { blur: 6.0, color: accent.alpha(0.35), ..Default::default() });
-        }
+    for sh in shadows(t.shadow, k, accent) {
+        root = root.box_shadow(sh);
     }
     let content = render::<S>(&cx, &look.template);
     root = if t.mark == Mark::Stripe {
