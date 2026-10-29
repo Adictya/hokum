@@ -33,6 +33,7 @@ mod bus;
 mod card;
 mod cards;
 mod config;
+mod focus;
 mod history;
 mod icons;
 mod integrations;

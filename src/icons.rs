@@ -115,24 +115,35 @@ fn lookup(name: &str) -> Option<PathBuf> {
         .find(|p| p.is_file() && p.extension().is_some_and(|e| e != "xpm"))
 }
 
-/// The icon a desktop entry names (`slack` → slack.desktop → `Icon=slack`).
-pub fn desktop_entry(id: &str) -> Option<PathBuf> {
+/// The first `key=` value in desktop entry `id`, searching the data dirs in order.
+fn entry_value(id: &str, key: &str) -> Option<String> {
     let id = id.trim().trim_end_matches(".desktop");
     if id.is_empty() {
         return None;
     }
+    let prefix = format!("{key}=");
     for dir in data_dirs() {
         let apps = dir.join("applications");
         let direct = apps.join(format!("{id}.desktop"));
         let file = if direct.is_file() { Some(direct) } else { find_entry(&apps, id) };
         if let Some(file) = file
             && let Ok(text) = std::fs::read_to_string(&file)
-            && let Some(name) = text.lines().find_map(|l| l.strip_prefix("Icon="))
+            && let Some(value) = text.lines().find_map(|l| l.strip_prefix(prefix.as_str()))
         {
-            return icon(name);
+            return Some(value.trim().to_owned());
         }
     }
     None
+}
+
+/// The icon a desktop entry names (`slack` → slack.desktop → `Icon=slack`).
+pub fn desktop_entry(id: &str) -> Option<PathBuf> {
+    icon(&entry_value(id, "Icon")?)
+}
+
+/// The window class a desktop entry says its windows carry (`StartupWMClass=`).
+pub fn wm_class(id: &str) -> Option<String> {
+    entry_value(id, "StartupWMClass").filter(|c| !c.is_empty())
 }
 
 /// Entries named like `com.slack.Slack.desktop` when asked for `slack`.

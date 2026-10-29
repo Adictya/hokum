@@ -89,6 +89,37 @@ click-through overlay, hosts the window, runs Sound and Bluetooth on their own t
 the tray icon. Launching `hokum` again shows that window. A module that can't start, or fails
 later, says so in its section and leaves the rest running.
 
+### History
+
+<img src="docs/history.png" alt="The history panel down the right edge of the screen" width="300" align="right">
+
+`hokum history toggle` opens a panel down the right edge of the focused screen, on its own layer
+surface (`hokum-history`), like swaync's control center. It lists this session's notifications
+newest first, drawn with your theme's cards, until they're dismissed, cleared or Hokum restarts;
+Do not disturb keeps cards off the screen but not out of it. Its header has Do not disturb,
+Clear, and a button into Settings. Cards wait behind the panel while it's open, and a click
+outside it or Esc closes it.
+
+Clicking a card, in the corner or in the panel, does its default action and, on Hyprland, also
+focuses the app's window (matched by its desktop entry, `StartupWMClass` or name), for apps
+that don't raise themselves.
+
+For a bar, `hokum history --json --watch` prints `{"count":3,"dnd":false}` whenever either
+changes (`app.hokum.Daemon.History` and the `HistoryCount` property on the bus). A waybar module:
+
+```jsonc
+"custom/hokum": {
+  "exec": "hokum history --json --watch | jq --unbuffered -c '{text: \"\", alt: ((if .dnd then \"dnd-\" else \"\" end) + (if .count > 0 then \"notification\" else \"none\" end))}'",
+  "return-type": "json",
+  "format": "{icon}",
+  "format-icons": { "notification": "󱅫", "none": "", "dnd-notification": "󰂛", "dnd-none": "󰪑" },
+  "on-click": "hokum history toggle",
+  "on-click-right": "hokum dnd toggle"
+}
+```
+
+<br clear="right">
+
 ### Modules
 
 Sound and Bluetooth are on unless `config.kdl` turns them off; the end of each section's

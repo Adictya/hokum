@@ -192,11 +192,16 @@ impl Cards for Ui {
         self.close();
     }
 
-    /// A click on a card does its default action, when it has one.
+    /// A click on a card brings its app forward and does its default action, when it has one;
+    /// either way it's been seen, so it leaves the history and the panel closes.
     fn activate(&mut self, id: u32) {
-        let default = self.notes.iter().find(|n| n.id == id).is_some_and(|n| n.has_default || n.command("default").is_some());
-        if default {
+        let Some(n) = self.notes.iter().find(|n| n.id == id) else { return };
+        crate::focus::raise(n.desktop.clone(), n.app.clone());
+        if n.has_default || n.command("default").is_some() {
             self.invoke(id, "default");
+        } else {
+            self.forget(id);
+            self.close();
         }
     }
 
@@ -392,12 +397,13 @@ mod tests {
     }
 
     #[test]
-    fn a_click_without_a_default_action_keeps_the_entry() {
+    fn a_click_or_the_close_button_takes_the_entry_out() {
         let (mut ui, _rx) = ui();
         ui.record(Note::new(7, "App", "Hi", ""));
+        ui.record(Note::new(8, "App", "Again", ""));
         ui.activate(7);
         assert_eq!(ui.count(), 1);
-        ui.dismiss(7);
+        ui.dismiss(8);
         assert_eq!(ui.count(), 0);
     }
 }

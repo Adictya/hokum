@@ -275,6 +275,13 @@ impl Ui {
     }
 
     fn activate_with(&mut self, id: u32, token: Option<String>) {
+        if let Some(n) = self.notes.iter().find(|n| n.id == id)
+            && !n.hud
+            && id != crate::welcome::ID
+            && id != crate::update::ID
+        {
+            crate::focus::raise(n.desktop.clone(), n.app.clone());
+        }
         let default = self.notes.iter().find(|n| n.id == id).is_some_and(|n| n.has_default || n.command("default").is_some());
         if default { self.invoke_with(id, "default", token) } else { self.dismiss(id) }
     }
