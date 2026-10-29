@@ -9,7 +9,7 @@
 //! - The unnamed LE device fails to pair (authentication failed).
 //! - The JBL speaker is out of range: connecting to it fails.
 //!
-//! `blue --mock` (or `HOKUM_BLUETOOTH_BACKEND=mock`) runs the window on it.
+//! `HOKUM_BLUETOOTH_BACKEND=mock` runs Hokum on it.
 
 use std::time::{Duration, Instant};
 
