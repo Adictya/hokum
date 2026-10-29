@@ -9,7 +9,7 @@
 use std::sync::mpsc::Sender;
 
 use rune::{AppHandle, AppSpec, Cursor, Cx, El, KeyEvent, KeyPolicy, OverlayHandle, OverlayInput, OverlayOptions, OverlayPlacement, OverlaySpec, ScrollSpec, Tx, col, el, row, text};
-use rune_kit::{ControlSize, Kit, Switch};
+use rune_kit::{ControlSize, IconButton, IconButtonVariant, Kit, Switch};
 
 use crate::card::{Cards, Note, Timeout, card};
 use crate::cards::Out;
@@ -24,6 +24,12 @@ const LIMIT: usize = 100;
 const MARGIN: f32 = 6.0;
 /// Inside the panel, around the cards.
 const PAD: f32 = 10.0;
+
+static SLIDERS: rune::Icon = rune::Icon {
+    name: "sliders",
+    view: 16.0,
+    body: r#"<path d="M2.5 4.5h7M12.5 4.5h1M2.5 11.5h1M6.5 11.5h7" stroke="currentColor" stroke-linecap="round"/><circle cx="11" cy="4.5" r="1.5" stroke="currentColor"/><circle cx="5" cy="11.5" r="1.5" stroke="currentColor"/>"#,
+};
 
 pub struct Ui {
     /// Newest first.
@@ -151,6 +157,15 @@ impl Ui {
         let _ = self.out.send(Out::History(self.count()));
     }
 
+    /// The settings window, on Notifications, in place of the panel.
+    fn configure(&mut self) {
+        if let Some(w) = &self.window {
+            let token = rune::press_activation_token(Some("hokum"));
+            crate::modules::open(w, Some(crate::settings::Section::Notifications), token);
+        }
+        self.close();
+    }
+
     fn toggle_dnd(&mut self) {
         if let Some(w) = &self.window {
             w.update(|w, _| w.toggle_dnd());
@@ -211,6 +226,12 @@ fn header(s: &Ui, k: &Kit, cx: &Ctx) -> El {
         .cursor(Cursor::Pointer)
         .on_press(|s: &mut Ui| s.clear())
         .child(text("Clear").key("clear-label").font(k.ty.small_medium).color(cx.ink(&cx.t.text)));
+    let configure = IconButton::new(&SLIDERS)
+        .variant(IconButtonVariant::GhostMuted)
+        .label("Configure Hokum")
+        .on_press(|s: &mut Ui| s.configure())
+        .build(k)
+        .key("configure");
     row()
         .key("header")
         .w_full()
@@ -222,6 +243,7 @@ fn header(s: &Ui, k: &Kit, cx: &Ctx) -> El {
         .child(text("Do not disturb").key("dnd-label").font(k.ty.small).color(cx.ink(&cx.t.muted)))
         .child(switch)
         .children((!s.notes.is_empty()).then_some(clear))
+        .child(configure)
 }
 
 pub fn view(s: &Ui, _: &mut Cx<Ui>) -> El {
