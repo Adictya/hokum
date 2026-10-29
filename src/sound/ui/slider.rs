@@ -1,4 +1,4 @@
-//! The volume slider: a thin track whose fill glows with the live level, a knob, cubic
+//! The volume slider: a thin track filled to the knob with the live level as a sheen inside the fill, a knob, cubic
 //! volume from the model. 0–100 % fills the track; dragging past its end overdrives to 150 %,
 //! after which the track rescales with a tick at 100 %. Balance uses the same track, centred.
 
@@ -73,16 +73,19 @@ impl Shadows for El {
 pub fn volume(k: &Kit, target: Target, value: f32, scale: f32, level: Option<f32>, muted: bool, dragging: bool) -> El {
     let c = &k.c;
     let frac = (value / scale).clamp(0.0, 1.0);
-    let fill = if muted { c.border_strong } else { c.icon_faint };
+    // The fill always reaches the knob; the live level is a sheen inside it that brightens
+    // toward the level, never past the knob.
+    let fill = if muted { c.border_strong } else { c.text_base.alpha(0.5) };
     let mut parts = vec![el().key("fill").w_frac(frac).h_full().radius(TRACK / 2.0).fill(fill)];
-    if let Some(l) = level.filter(|_| !muted) {
+    if let Some(l) = level.filter(|_| !muted && frac > 0.0) {
         parts.push(
             el().key("level")
                 .absolute(0.0, 0.0)
                 .w_frac((l / scale).clamp(0.0, frac))
                 .h_full()
                 .radius(TRACK / 2.0)
-                .fill(c.text_base)
+                .linear_gradient(std::f32::consts::FRAC_PI_2, [(0.0, c.text_base.alpha(0.0)), (1.0, c.text_base.alpha(0.6))])
+                .box_shadow(rune::Shadow { x: 0.0, y: 0.0, blur: 6.0, spread: 0.0, color: c.text_base.alpha(0.18), inset: false })
                 .motion(Spring::new(0.12, 0.0)),
         );
     }
