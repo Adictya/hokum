@@ -1,12 +1,14 @@
 //! The tray panel: a click on Hokum's tray icon opens the modules' first screens, compact.
 //! The output's volume and device, the input while something records (or it's muted), the
 //! Bluetooth devices (a click connects or disconnects), Do not disturb, and a way into the
-//! window. Outside the card, clicks pass through.
+//! window. `hokum panel sound|bt` opens it on one module's part. It covers the screen, clear,
+//! so a click anywhere outside the card closes it (layer surfaces only learn of focus moving
+//! away once they've had it, which a pointer-only panel never does).
 
-use rune::{Align, Cursor, El, KeyPolicy, OverlayInput, OverlayOptions, OverlayPlacement, OverlaySpec, ScreenEdge, col, el, row, text};
+use rune::{Cursor, El, KeyPolicy, OverlayInput, OverlayOptions, OverlayPlacement, OverlaySpec, col, el, row, text};
 use rune_kit::{ControlSize, IconButton, IconButtonVariant, Kit, Switch};
 
-use crate::settings::{Surface, Ui};
+use crate::settings::{Section, Surface, Ui};
 
 /// The card's width.
 pub const WIDTH: f32 = 340.0;
@@ -14,6 +16,8 @@ pub const WIDTH: f32 = 340.0;
 pub const MARGIN: f32 = 12.0;
 /// Tall enough for the card with a row open.
 const HEIGHT: f32 = 720.0;
+/// From the screen's top and right edges, under the bar the tray sits in.
+const OFFSET: f32 = 4.0;
 
 static BELL: rune::Icon = rune::Icon {
     name: "bell",
@@ -83,14 +87,15 @@ pub fn view(s: &Ui, k: &Kit) -> El {
     let mut layer = Vec::new();
     let mut card = col().key("panel").w_full();
     let mut parts = 0;
-    if s.loaded.modules.sound && s.sound_error.is_none() {
+    let shows = |m: Section| s.only.is_none_or(|o| o == m);
+    if s.loaded.modules.sound && s.sound_error.is_none() && shows(Section::Sound) {
         let rows = crate::sound::ui::panel(&s.sound, k, &mut layer);
         if !rows.is_empty() {
             card = card.child(col().key("sound").w_full().px(14.0).pt(12.0).pb(14.0).gap(14.0).children(rows));
             parts += 1;
         }
     }
-    if s.loaded.modules.bluetooth && s.bluetooth_error.is_none() {
+    if s.loaded.modules.bluetooth && s.bluetooth_error.is_none() && shows(Section::Bluetooth) {
         let rows = crate::bluetooth::ui::panel(&s.bluetooth, k);
         if !rows.is_empty() {
             if parts > 0 {
@@ -105,14 +110,27 @@ pub fn view(s: &Ui, k: &Kit) -> El {
     }
     let card = card.child(footer(s, k)).radius(14.0).fill(c.page).border(1.0, c.border_base).hit();
     let card = k.elevation.overlay.iter().fold(card, |e, sh| e.box_shadow(*sh));
-    col().key("panel-frame").w(WIDTH + 2.0 * MARGIN).padding(MARGIN).child(card).children(layer.into_iter().map(El::hit))
+    let frame = col()
+        .key("panel-frame")
+        .pin(None, Some(OFFSET), Some(OFFSET), None)
+        .w(WIDTH + 2.0 * MARGIN)
+        .padding(MARGIN)
+        .child(card)
+        .children(layer.into_iter().map(El::hit));
+    let backdrop = el().key("backdrop").pin(Some(0.0), Some(0.0), Some(0.0), Some(0.0)).hit().on_press(|s: &mut Ui| {
+        if let Some(d) = &s.dismiss {
+            d();
+        }
+    });
+    el().key("panel-root").w_full().h_full().child(backdrop).child(frame)
 }
 
-/// The panel's overlay: under the top edge at the right, where tray icons usually sit.
+/// The panel's overlay: the whole screen, with the card under the top edge at the right, where
+/// tray icons usually sit.
 pub fn overlay() -> rune::ConfiguredOverlay<Ui> {
     OverlaySpec::new("hokum-panel", (WIDTH + 2.0 * MARGIN, HEIGHT), crate::settings::view)
         .options(OverlayOptions {
-            placement: Some(OverlayPlacement::Edge { edge: ScreenEdge::Top, margin: 4.0, align: Align::End, inset: 4.0 }),
+            placement: Some(OverlayPlacement::FullScreen),
             keys: KeyPolicy::OnDemand,
             input: OverlayInput::Regions,
             ..OverlayOptions::default()

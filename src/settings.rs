@@ -105,6 +105,8 @@ pub struct Ui {
     pub bluetooth_error: Option<String>,
     /// Hides the tray panel (the panel only).
     pub dismiss: Option<Arc<dyn Fn() + Send + Sync>>,
+    /// In the panel: one module's part only (`hokum panel sound`), or every part.
+    pub only: Option<Section>,
 }
 
 impl Cards for Ui {
@@ -1036,6 +1038,7 @@ pub fn init() -> Ui {
         sound_error: None,
         bluetooth_error: None,
         dismiss: None,
+        only: None,
     };
     ui.configure(crate::watch::load());
     ui

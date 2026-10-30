@@ -335,6 +335,17 @@ impl Window {
     fn open(&self, section: String, token: String) {
         crate::modules::open(&self.settings, crate::settings::Section::from_word(&section), Some(token));
     }
+
+    /// Show the tray's panel on one module (`sound`, `bluetooth`) or all of them (empty), or hide
+    /// it when it's already showing that.
+    fn panel(&self, section: String) {
+        let only = crate::settings::Section::from_word(&section).filter(|s| *s != crate::settings::Section::Notifications);
+        self.settings.update(move |w, _| {
+            if let Some(wiring) = &w.wiring {
+                wiring.toggle_panel(only);
+            }
+        });
+    }
 }
 
 /// Follows the desktop's colour scheme (`org.freedesktop.appearance color-scheme`: 1 dark,
@@ -489,6 +500,13 @@ pub fn control(args: &[String]) -> i32 {
             Err(e) => fail(&e),
         },
         Some("history") => history(&conn, args),
+        Some("panel") => {
+            let section = args.get(1).cloned().unwrap_or_default();
+            match conn.call_method(Some(NAME), SETTINGS_PATH, Some(SETTINGS_IFACE), "Panel", &(section,)) {
+                Ok(_) => 0,
+                Err(e) => fail(&e),
+            }
+        }
         Some("invoke") => {
             let token = std::env::var("XDG_ACTIVATION_TOKEN").unwrap_or_default();
             match call("Invoke", &(token,)).and_then(|m| m.body().deserialize::<bool>()) {

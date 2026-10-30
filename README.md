@@ -75,6 +75,7 @@ hokum invoke              # do what clicking the newest card does
 hokum dnd [on|off|toggle] # print Do not disturb, or set it (--json, --watch for bars)
 hokum history [toggle]    # the panel of this session's notifications down the right edge
                           # (open, close, clear; --json, --watch for bars)
+hokum panel [sound|bt]    # the tray's panel, on one module's part or all of them (for bars)
 hokum update [--install]  # check for a new build now (and install it)
 hokum --version
 ```

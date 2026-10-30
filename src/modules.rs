@@ -34,6 +34,8 @@ pub struct Wiring {
     shown: Arc<AtomicBool>,
     tray: Mutex<Option<(Arc<Tray>, bool, bool)>>,
     tip: Arc<Mutex<Tip>>,
+    /// What the panel is showing: one module's part, or every part.
+    only: Mutex<Option<Section>>,
 }
 
 /// Shows the window, on `section` when given.
@@ -63,7 +65,11 @@ impl Wiring {
             devices: Mutex::default(),
             show_osd: AtomicBool::new(true),
             show_devices: AtomicBool::new(true),
-            shown: Arc::new(AtomicBool::new(false)), tray: Mutex::new(None), tip: Arc::new(Mutex::new(Tip::default())) });
+            shown: Arc::new(AtomicBool::new(false)),
+            tray: Mutex::new(None),
+            tip: Arc::new(Mutex::new(Tip::default())),
+            only: Mutex::new(None),
+        });
         let hide = w.hider();
         w.panel.update(move |p, _| p.dismiss = Some(hide));
         w
@@ -78,13 +84,17 @@ impl Wiring {
         })
     }
 
-    /// The tray's click: the panel, or away with it.
-    fn toggle_panel(&self) {
-        if self.shown.swap(true, Ordering::SeqCst) {
+    /// The tray's click (`only` None) or `hokum panel sound|bt`: the panel on that part, or
+    /// away with it when it's already showing that.
+    pub fn toggle_panel(&self, only: Option<Section>) {
+        let was = *self.only.lock().unwrap_or_else(|e| e.into_inner());
+        if self.shown.swap(true, Ordering::SeqCst) && was == only {
             self.hider()();
             return;
         }
-        self.panel.update(|p, _| {
+        *self.only.lock().unwrap_or_else(|e| e.into_inner()) = only;
+        self.panel.update(move |p, _| {
+            p.only = only;
             p.shown();
             p.sound.open.clear();
             p.sound.page = crate::sound::ui::Page::Main;
@@ -223,7 +233,7 @@ impl Wiring {
         match Tray::new(spec, move |e| match e {
             TrayEvent::Activate { .. } => {
                 if let Some(me) = me.upgrade() {
-                    me.toggle_panel();
+                    me.toggle_panel(None);
                 }
             }
             TrayEvent::Menu(id) if id == "open" => open(&window, None, None),

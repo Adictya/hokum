@@ -10,6 +10,7 @@
 //! hokum invoke              # click the newest card
 //! hokum dnd [on|off|toggle] # Do not disturb: print it, or set it and print the result
 //! hokum history [toggle]    # the history panel down the right edge (open, close, clear)
+//! hokum panel [sound|bt]    # the tray's panel, on one module or all of them
 //! hokum update [--install]  # check for a new build now (and install it)
 //! hokum --version
 //! hokum --snap /tmp/settings.png --scene hokum            # headless settings, no D-Bus
@@ -52,7 +53,7 @@ mod welcome;
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
-const HELP: &str = "usage: hokum [sound | bt | service [--replace] | check [path] | dismiss | invoke | dnd | history | update] [--version] [--help]
+const HELP: &str = "usage: hokum [sound | bt | service [--replace] | check [path] | dismiss | invoke | dnd | history | panel | update] [--version] [--help]
   hokum                  show the window (starts Hokum if needed)
   hokum sound            show the window on Sound
   hokum bt, bluetooth    show the window on Bluetooth
@@ -72,6 +73,7 @@ const HELP: &str = "usage: hokum [sound | bt | service [--replace] | check [path
                          how many it holds
     --json               print {\"count\":3,\"dnd\":false} instead
     --watch              keep printing it whenever either changes (for bars)
+  hokum panel [sound|bt] show or hide the tray's panel, on one module's part or all of them
   hokum update           check for a new build on this build's channel now
     --install            and install it, as clicking the update card does
   dismiss and invoke exit 1 when there are no notifications
@@ -110,7 +112,7 @@ fn main() {
         history::headless();
         return;
     }
-    if argv.first().is_some_and(|a| a == "history") {
+    if argv.first().is_some_and(|a| a == "history" || a == "panel") {
         std::process::exit(bus::control(&argv));
     }
     let service = argv.first().is_some_and(|a| a == "service");
