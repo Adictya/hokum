@@ -107,6 +107,13 @@ pub struct Ui {
     pub dismiss: Option<Arc<dyn Fn() + Send + Sync>>,
     /// In the panel: one module's part only (`hokum panel sound`), or every part.
     pub only: Option<Section>,
+    /// In the panel: the pointer's x when it opened and the width of the area it opened in, to
+    /// sit under the bar icon that was clicked; None for the corner.
+    pub panel_at: Option<(f32, f32)>,
+    /// In the panel: which opening this is, so each one starts with fresh hover state.
+    pub opened: u64,
+    /// In the panel: the pointer has been over the card since it opened.
+    pub entered: Arc<std::sync::atomic::AtomicBool>,
 }
 
 impl Cards for Ui {
@@ -1039,6 +1046,9 @@ pub fn init() -> Ui {
         bluetooth_error: None,
         dismiss: None,
         only: None,
+        panel_at: None,
+        opened: 0,
+        entered: Arc::default(),
     };
     ui.configure(crate::watch::load());
     ui

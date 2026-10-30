@@ -5,7 +5,7 @@
 //! Each backend runs on its own threads. One that can't start, or that panics later, leaves a
 //! quiet line in its section (and nothing in the panel); notifications never notice.
 
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 // Volume and Bluetooth cards come from `crate::integrations`.
 use std::sync::{Arc, Mutex};
 
@@ -36,6 +36,9 @@ pub struct Wiring {
     tip: Arc<Mutex<Tip>>,
     /// What the panel is showing: one module's part, or every part.
     only: Mutex<Option<Section>>,
+    /// How many times the panel has opened, and whether the pointer has reached it since.
+    opens: Arc<AtomicU64>,
+    entered: Arc<AtomicBool>,
 }
 
 /// Shows the window, on `section` when given.
@@ -69,9 +72,14 @@ impl Wiring {
             tray: Mutex::new(None),
             tip: Arc::new(Mutex::new(Tip::default())),
             only: Mutex::new(None),
+            opens: Arc::default(),
+            entered: Arc::default(),
         });
-        let hide = w.hider();
-        w.panel.update(move |p, _| p.dismiss = Some(hide));
+        let (hide, entered) = (w.hider(), w.entered.clone());
+        w.panel.update(move |p, _| {
+            p.dismiss = Some(hide);
+            p.entered = entered;
+        });
         w
     }
 
@@ -93,8 +101,13 @@ impl Wiring {
             return;
         }
         *self.only.lock().unwrap_or_else(|e| e.into_inner()) = only;
+        let opened = self.opens.fetch_add(1, Ordering::SeqCst) + 1;
+        self.entered.store(false, Ordering::SeqCst);
+        let at = crate::panel::pointer();
         self.panel.update(move |p, _| {
             p.only = only;
+            p.panel_at = at;
+            p.opened = opened;
             p.shown();
             p.sound.open.clear();
             p.sound.page = crate::sound::ui::Page::Main;
@@ -103,6 +116,14 @@ impl Wiring {
         });
         self.panel.show();
         self.panel.request_keys();
+        // A pointer that never reaches the card can't leave it.
+        let (opens, entered, hide) = (self.opens.clone(), self.entered.clone(), self.hider());
+        std::thread::spawn(move || {
+            std::thread::sleep(crate::panel::GRACE);
+            if opens.load(Ordering::SeqCst) == opened && !entered.load(Ordering::SeqCst) {
+                hide();
+            }
+        });
     }
 
     /// A new config: modules on or off, the tray's menu, and the panel's copy of it.
